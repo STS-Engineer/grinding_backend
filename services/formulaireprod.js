@@ -263,9 +263,7 @@ router.post('/machinee', authenticate, async (req, res) => {
   const userId = req.user.userId; // Extract user ID from JWT
 
   try {
-    // Start the transaction
-    await pool.query('BEGIN');
-
+   
     // Insert the machine
     const result = await pool.query(
       `INSERT INTO machine (nom, referenceproduit, date, user_id, cadence_horaire, nombre_operateur_chargement, 
@@ -374,9 +372,6 @@ router.put('/machine/:id/outil', authenticate, async (req, res) => {
         [tool.phase, tool.nom_outil, tool.dureedevie, id] // Insert tools linked to the updated machine
       );
     }
-
-    // Commit the transaction
-    await pool.query('COMMIT');
 
     return res.status(200).json({ 
       message: 'Machine and Outils updated successfully',
