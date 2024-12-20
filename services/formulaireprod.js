@@ -254,61 +254,100 @@ router.post('/machine', authenticate, async (req, res) => {
 //new machine post methid correct
 router.post('/machinee', authenticate, async (req, res) => {
   const {
-    nom, referenceproduit, date, cadence_horaire, 
-    nombre_operateur_chargement, cadence_horaire_cf, cadence_horaire_csl, nombre_operateur_cf,
+    nom,
+    referenceproduit,
+    date,
+    cadence_horaire,
+    nombre_operateur_chargement,
+    cadence_horaire_cf,
+    cadence_horaire_csl,
+    nombre_operateur_cf,
     nombre_operateur_csl,
-    tools = [] // default array
+    tools = [] // default array for tools
   } = req.body;
 
   const userId = req.user.userId; // Extract user ID from JWT
 
+  // Start a transaction for database consistency
   try {
-   
-    // Insert the machine
-    const result = await pool.query(
-      `INSERT INTO machine (nom, referenceproduit, date, user_id, cadence_horaire, nombre_operateur_chargement, 
-                            cadence_horaire_cf, cadence_horaire_csl, nombre_operateur_cf, nombre_operateur_csl) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
-       RETURNING id`, 
-      [nom, referenceproduit, date, userId, cadence_horaire, nombre_operateur_chargement, cadence_horaire_cf, 
-       cadence_horaire_csl, nombre_operateur_cf, nombre_operateur_csl]
+    await pool.query('BEGIN'); // Start transaction
+
+    // Insert the machine data
+    const machineResult = await pool.query(
+      `INSERT INTO machine 
+      (nom, referenceproduit, date, user_id, cadence_horaire, nombre_operateur_chargement, 
+      cadence_horaire_cf, cadence_horaire_csl, nombre_operateur_cf, nombre_operateur_csl) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+      RETURNING id`,
+      [
+        nom,
+        referenceproduit,
+        date,
+        userId,
+        cadence_horaire,
+        nombre_operateur_chargement,
+        cadence_horaire_cf,
+        cadence_horaire_csl,
+        nombre_operateur_cf,
+        nombre_operateur_csl
+      ]
     );
 
-    // Get the generated machine id
-    const machineId = result.rows[0].id;
+    const machineId = machineResult.rows[0].id; // Get generated machine ID
+    console.log('Machine inserted, generated ID:', machineId);
 
-    console.log('Machine inserted, generated ID:', machineId); // Debugging line
-
+    // If tools are provided, insert them in batch for performance
     if (tools.length > 0) {
-      // Insert each tool into the 'outil' table
-      for (const tool of tools) {
-        console.log('Inserting tool:', tool); // Debugging line
-        
-        await pool.query(
-          'INSERT INTO outil (phase, nom_outil, dureedevie, machine_id, referenceproduit) VALUES ($1, $2, $3, $4, $5)',
-          [tool.phase, tool.nom_outil, tool.dureedevie, machineId, referenceproduit] // Use machineId instead of id
-        );
-      }
+      const toolValues = tools.map(tool => [
+        tool.phase,
+        tool.nom_outil,
+        tool.dureedevie,
+        machineId,
+        referenceproduit
+      ]);
+
+      // Prepare placeholders for batch insertion
+      const placeholders = toolValues
+        .map(
+          (_, i) =>
+            `($${i * 5 + 1}, $${i * 5 + 2}, $${i * 5 + 3}, $${i * 5 + 4}, $${i * 5 + 5})`
+        )
+        .join(', ');
+
+      // Batch insert tools
+      await pool.query(
+        `INSERT INTO outil (phase, nom_outil, dureedevie, machine_id, referenceproduit) VALUES ${placeholders}`,
+        toolValues.flat()
+      );
+
+      console.log('Tools inserted:', tools.length);
     } else {
       console.log('No tools provided for insertion.');
     }
 
-    // Commit the transaction
-    await pool.query('COMMIT');
+    await pool.query('COMMIT'); // Commit the transaction
 
+    // Respond with success
     return res.status(201).json({
-      message: 'Machine and Outils created successfully',
-      machine: { id: machineId, nombre_operateur_chargement, nombre_operateur_cf, nombre_operateur_csl, tools }
+      message: 'Machine and tools created successfully',
+      machine: {
+        id: machineId,
+        nombre_operateur_chargement,
+        nombre_operateur_cf,
+        nombre_operateur_csl,
+        tools
+      }
     });
   } catch (error) {
-    console.error('Error creating machine and outils:', error);
+    await pool.query('ROLLBACK'); // Rollback transaction on error
+    console.error('Error creating machine and tools:', error);
 
-    // Rollback the transaction in case of an error
-    await pool.query('ROLLBACK');
-    return res.status(500).json({ message: 'An error occurred while creating the machine and tools' });
+    return res.status(500).json({
+      message: 'An error occurred while creating the machine and tools',
+      error: error.message // Only for debugging during development
+    });
   }
 });
-
 
 
 // Route to fetch all machine details
