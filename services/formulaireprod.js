@@ -70,46 +70,46 @@ router.post('/login', async (req, res) => {
 // Ajouter form prod
 router.post('/prod', async (req, res) => {
   const {
-    refprod, date, shift, machine, phase,
-    commentaires, totalrealise, machine_id, defaut, phasecf, phasecsl, typedefautproduction,
+    referenceproduit, date, shift, phase,
+    commentaires, totalrealise, machine_id, defaut, typedefautproduction,
     totaldefautproduction, typedefautcf, totaldefautcf, typedefautcsl, totaldefautcsl, typedeproblemeproduction,
-    dateproblemeproduction, typedeproblemecf, dateproblemecf, typedeproblemecsl, dateproblemecsl, totalproduitcf, totalproduitcsl
+    dureedeproblemeproduction, typedeproblemecf, dureedeproblemecf, typedeproblemecsl, dureedeproblemecsl, totalproduitcf, totalproduitcsl
   } = req.body;
 
   try {
     // Insert production record
     const productionResult = await pool.query(
-      `INSERT INTO production (refprod, date, shift, machine, phase, commentaires, totalrealise, machine_id, defaut, phasecf, phasecsl, typedefautproduction, totaldefautproduction, typedefautcf, totaldefautcf, typedefautcsl, totaldefautcsl, typedeproblemeproduction, dateproblemeproduction, typedeproblemecf, dateproblemecf, typedeproblemecsl, dateproblemecsl, totalproduitcf, totalproduitcsl)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25) RETURNING *`,
-      [refprod, date, shift, machine, phase, commentaires, totalrealise, machine_id, defaut, phasecf, phasecsl, typedefautproduction, totaldefautproduction, typedefautcf, totaldefautcf, typedefautcsl, totaldefautcsl, typedeproblemeproduction, dateproblemeproduction, typedeproblemecf, dateproblemecf, typedeproblemecsl, dateproblemecsl, totalproduitcf, totalproduitcsl]
+      `INSERT INTO production (referenceproduit, date, shift, phase, commentaires, totalrealise, machine_id, defaut, typedefautproduction, totaldefautproduction, typedefautcf, totaldefautcf, typedefautcsl, totaldefautcsl, typedeproblemeproduction, dureedeproblemeproduction, typedeproblemecf, dureedeproblemecf, typedeproblemecsl, dureedeproblemecsl, totalproduitcf, totalproduitcsl)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING *`,
+      [referenceproduit, date, shift, phase, commentaires, totalrealise, machine_id, defaut,  typedefautproduction, totaldefautproduction, typedefautcf, totaldefautcf, typedefautcsl, totaldefautcsl, typedeproblemeproduction, dureedeproblemeproduction, typedeproblemecf, dureedeproblemecf, typedeproblemecsl, dureedeproblemecsl, totalproduitcf, totalproduitcsl]
     );
 
-    const result = await pool.query('SELECT * from machine where id =$1', [machine_id]);
-    const machineresult = await result.rows[0];
-    const dureevierefroueoutil = machineresult.dureevierefroueoutil;
-    const dureevierefmeulehauteuroutil = machineresult.dureevierefmeulehauteuroutil;
-    const dureevierefmeulelargeuroutil = machineresult.dureevierefmeulelargeuroutil;
-    const dureevierefmeulerefmeulechanfreinsoutil = machineresult.dureevierefmeulerefmeulechanfreinsoutil;
-    const dureevieoutillageusinagerainureoutil = machineresult.dureevieoutillageusinagerainureoutil;
-    const dureevierefmeulerayonnageoutil = machineresult.dureevierefmeulerayonnageoutil;
-    const dureevieusinagetete = machineresult.dureevieusinagetete;
+    // const result = await pool.query('SELECT * from machine where id =$1', [machine_id]);
+    // const machineresult = await result.rows[0];
+    // const dureevierefroueoutil = machineresult.dureevierefroueoutil;
+    // const dureevierefmeulehauteuroutil = machineresult.dureevierefmeulehauteuroutil;
+    // const dureevierefmeulelargeuroutil = machineresult.dureevierefmeulelargeuroutil;
+    // const dureevierefmeulerefmeulechanfreinsoutil = machineresult.dureevierefmeulerefmeulechanfreinsoutil;
+    // const dureevieoutillageusinagerainureoutil = machineresult.dureevieoutillageusinagerainureoutil;
+    // const dureevierefmeulerayonnageoutil = machineresult.dureevierefmeulerayonnageoutil;
+    // const dureevieusinagetete = machineresult.dureevieusinagetete;
     
-    // Calculate remaining life
-    const dureevierefroueoutilresult =  dureevierefroueoutil - totalrealise ;
-    const dureevierefmeulehauteuroutilresult = dureevierefmeulehauteuroutil - totalrealise;
-    const dureevierefmeulelargeuroutilresult = dureevierefmeulelargeuroutil - totalrealise;
-    const dureevierefmeulerefmeulechanfreinsoutilresult =  dureevierefmeulerefmeulechanfreinsoutil - totalrealise;
-    const dureevieoutillageusinagerainureoutilresult =  dureevieoutillageusinagerainureoutil - totalrealise;
-    const dureevierefmeulerayonnageoutilresult =  dureevierefmeulerayonnageoutil - totalrealise;
-    const dureevieusinageteteresult = dureevieusinagetete - totalrealise;
+    // // Calculate remaining life
+    // const dureevierefroueoutilresult =  dureevierefroueoutil - totalrealise ;
+    // const dureevierefmeulehauteuroutilresult = dureevierefmeulehauteuroutil - totalrealise;
+    // const dureevierefmeulelargeuroutilresult = dureevierefmeulelargeuroutil - totalrealise;
+    // const dureevierefmeulerefmeulechanfreinsoutilresult =  dureevierefmeulerefmeulechanfreinsoutil - totalrealise;
+    // const dureevieoutillageusinagerainureoutilresult =  dureevieoutillageusinagerainureoutil - totalrealise;
+    // const dureevierefmeulerayonnageoutilresult =  dureevierefmeulerayonnageoutil - totalrealise;
+    // const dureevieusinageteteresult = dureevieusinagetete - totalrealise;
 
-    // Update machine table
-    await pool.query(
-      `UPDATE machine
-       SET dureevierefroueoutil = $1, dureevierefmeulehauteuroutil = $2, dureevierefmeulelargeuroutil = $3, dureevierefmeulerefmeulechanfreinsoutil = $4, dureevieoutillageusinagerainureoutil = $5, dureevierefmeulerayonnageoutil = $6, dureevieusinagetete = $7
-       WHERE id = $8`,
-      [dureevierefroueoutilresult, dureevierefmeulehauteuroutilresult, dureevierefmeulelargeuroutilresult, dureevierefmeulerefmeulechanfreinsoutilresult, dureevieoutillageusinagerainureoutilresult, dureevierefmeulerayonnageoutilresult, dureevieusinageteteresult, machine_id]
-    );
+    // // Update machine table
+    // await pool.query(
+    //   `UPDATE machine
+    //    SET dureevierefroueoutil = $1, dureevierefmeulehauteuroutil = $2, dureevierefmeulelargeuroutil = $3, dureevierefmeulerefmeulechanfreinsoutil = $4, dureevieoutillageusinagerainureoutil = $5, dureevierefmeulerayonnageoutil = $6, dureevieusinagetete = $7
+    //    WHERE id = $8`,
+    //   [dureevierefroueoutilresult, dureevierefmeulehauteuroutilresult, dureevierefmeulelargeuroutilresult, dureevierefmeulerefmeulechanfreinsoutilresult, dureevieoutillageusinagerainureoutilresult, dureevierefmeulerayonnageoutilresult, dureevieusinageteteresult, machine_id]
+    // );
 
     const production = productionResult.rows[0];
 
@@ -249,6 +249,68 @@ router.post('/machine', authenticate, async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
+
+//new machine post methid correct
+router.post('/machinee', authenticate, async (req, res) => {
+  const {
+    nom, referenceproduit, date, cadence_horaire, 
+    nombre_operateur_chargement, cadence_horaire_cf, cadence_horaire_csl, nombre_operateur_cf,
+    nombre_operateur_csl,
+    tools = [] // default array
+  } = req.body;
+
+  const userId = req.user.userId; // Extract user ID from JWT
+
+  try {
+    // Start the transaction
+    await pool.query('BEGIN');
+
+    // Insert the machine
+    const result = await pool.query(
+      `INSERT INTO machine (nom, referenceproduit, date, user_id, cadence_horaire, nombre_operateur_chargement, 
+                            cadence_horaire_cf, cadence_horaire_csl, nombre_operateur_cf, nombre_operateur_csl) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+       RETURNING id`, 
+      [nom, referenceproduit, date, userId, cadence_horaire, nombre_operateur_chargement, cadence_horaire_cf, 
+       cadence_horaire_csl, nombre_operateur_cf, nombre_operateur_csl]
+    );
+
+    // Get the generated machine id
+    const machineId = result.rows[0].id;
+
+    console.log('Machine inserted, generated ID:', machineId); // Debugging line
+
+    if (tools.length > 0) {
+      // Insert each tool into the 'outil' table
+      for (const tool of tools) {
+        console.log('Inserting tool:', tool); // Debugging line
+        
+        await pool.query(
+          'INSERT INTO outil (phase, nom_outil, dureedevie, machine_id, referenceproduit) VALUES ($1, $2, $3, $4, $5)',
+          [tool.phase, tool.nom_outil, tool.dureedevie, machineId, referenceproduit] // Use machineId instead of id
+        );
+      }
+    } else {
+      console.log('No tools provided for insertion.');
+    }
+
+    // Commit the transaction
+    await pool.query('COMMIT');
+
+    return res.status(201).json({
+      message: 'Machine and Outils created successfully',
+      machine: { id: machineId, nombre_operateur_chargement, nombre_operateur_cf, nombre_operateur_csl, tools }
+    });
+  } catch (error) {
+    console.error('Error creating machine and outils:', error);
+
+    // Rollback the transaction in case of an error
+    await pool.query('ROLLBACK');
+    return res.status(500).json({ message: 'An error occurred while creating the machine and tools' });
+  }
+});
+
 
 
 // Route to fetch all machine details
@@ -498,38 +560,51 @@ router.post('/plannification', authenticate, async (req, res) => {
 });
 
 router.get('/plannifications', authenticate, async (req, res) => {
-  const { start_date, end_date } = req.query; // Retrieve both start_date and end_date from the query
+  const { start_date, end_date, id_machine } = req.query; // Retrieve start_date, end_date, and machine_id from the query
 
   try {
     let query = 'SELECT * FROM plannification';
     let queryParams = [];
 
-    // Check if both start_date and end_date are provided
+    // If both start_date and end_date are provided, filter by both
     if (start_date && end_date) {
       query += ' WHERE start_date >= $1 AND end_date <= $2';
       queryParams = [start_date, end_date];
     } else if (start_date) {
-      // If only start_date is provided
+      // If only start_date is provided, filter by start_date
       query += ' WHERE start_date >= $1';
       queryParams = [start_date];
     } else if (end_date) {
-      // If only end_date is provided
+      // If only end_date is provided, filter by end_date
       query += ' WHERE end_date <= $1';
       queryParams = [end_date];
     }
 
-    // Execute the query
+    // Add filtering for machine_id if provided
+    if (id_machine) {
+      query += queryParams.length ? ' AND id_machine = $' + (queryParams.length + 1) : ' WHERE id_machine = $1';
+      queryParams.push(id_machine);
+    }
+
+    // Execute the query to fetch plannifications
     const result = await pool.query(query, queryParams);
 
-    // Map the result to match the expected structure
-    const plannifications = result.rows.map(item => ({
-      id: item.id,
-      phasechargement: item.phasechargement,
-      shift: item.shift,
-      shift2: item.shift2,
-      date_creation: item.date_creation,
-      start_date: item.start_date,
-      end_date: item.end_date,
+    // Map the result to match the expected structure, including the machine details
+    const plannifications = await Promise.all(result.rows.map(async (item) => {
+      const machineResult = await pool.query("SELECT * FROM machine WHERE id = $1", [item.id_machine]);
+      const machine = machineResult.rows[0];
+
+      return {
+        id: item.id,
+        phasechargement: item.phasechargement,
+        shift: item.shift,
+        shift2: item.shift2,
+        date_creation: item.date_creation,
+        start_date: item.start_date,
+        end_date: item.end_date,
+        id_machine: item.id_machine,
+        machine_name: machine ? machine.nom : "Unknown Machine", // Get machine name
+      };
     }));
 
     // Send the response with the filtered plannifications
@@ -539,9 +614,6 @@ router.get('/plannifications', authenticate, async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
-
-
-
 
 
 //get plannifications
