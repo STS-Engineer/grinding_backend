@@ -2,8 +2,6 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors'); // Import the cors middleware
 const prodformrouter = require('./services/formulaireprod');
-const nodemailer = require('nodemailer');
-const cors = require('cors');
 const app = express();
 
 app.use(bodyParser.json());
