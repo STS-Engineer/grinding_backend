@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors'); // Import the cors middleware
 const prodformrouter = require('./services/formulaireprod');
 const nodemailer = require('nodemailer');
+const cors = require('cors');
 
 
 const app = express();
@@ -16,7 +17,7 @@ const REFRESH_TOKEN = 'YOUR_REFRESH_TOKEN'; // You need to obtain the refresh to
 
 app.use(bodyParser.json());
 app.use(cors({
-    origin: 'http://localhost:3000'
+    origin: 'https://grinding-backend.azurewebsites.net'
   }));
   
 app.use('/ajouter', prodformrouter)
