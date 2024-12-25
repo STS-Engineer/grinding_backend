@@ -4,6 +4,7 @@ const pool = require('../db');
 const bcrypt= require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+
 JWT_SECRET='12345'
 router.post('/register', async (req, res) => {
   const { email, password } = req.body;
@@ -77,51 +78,29 @@ router.post('/prod', async (req, res) => {
   } = req.body;
 
   try {
-    // Insert production record
+   
+ 
+
+    // Step 3: Insert production record, including totalplanifie
     const productionResult = await pool.query(
       `INSERT INTO production (referenceproduit, date, shift, phase, commentaires, totalrealise, machine_id, defaut, typedefautproduction, totaldefautproduction, typedefautcf, totaldefautcf, typedefautcsl, totaldefautcsl, typedeproblemeproduction, dureedeproblemeproduction, typedeproblemecf, dureedeproblemecf, typedeproblemecsl, dureedeproblemecsl, totalproduitcf, totalproduitcsl)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING *`,
-      [referenceproduit, date, shift, phase, commentaires, totalrealise, machine_id, defaut,  typedefautproduction, totaldefautproduction, typedefautcf, totaldefautcf, typedefautcsl, totaldefautcsl, typedeproblemeproduction, dureedeproblemeproduction, typedeproblemecf, dureedeproblemecf, typedeproblemecsl, dureedeproblemecsl, totalproduitcf, totalproduitcsl]
+      [referenceproduit, date, shift, phase, commentaires, totalrealise, machine_id, defaut, typedefautproduction, totaldefautproduction, typedefautcf, totaldefautcf, typedefautcsl, totaldefautcsl, typedeproblemeproduction, dureedeproblemeproduction, typedeproblemecf, dureedeproblemecf, typedeproblemecsl, dureedeproblemecsl, totalproduitcf, totalproduitcsl]
     );
-
-    // const result = await pool.query('SELECT * from machine where id =$1', [machine_id]);
-    // const machineresult = await result.rows[0];
-    // const dureevierefroueoutil = machineresult.dureevierefroueoutil;
-    // const dureevierefmeulehauteuroutil = machineresult.dureevierefmeulehauteuroutil;
-    // const dureevierefmeulelargeuroutil = machineresult.dureevierefmeulelargeuroutil;
-    // const dureevierefmeulerefmeulechanfreinsoutil = machineresult.dureevierefmeulerefmeulechanfreinsoutil;
-    // const dureevieoutillageusinagerainureoutil = machineresult.dureevieoutillageusinagerainureoutil;
-    // const dureevierefmeulerayonnageoutil = machineresult.dureevierefmeulerayonnageoutil;
-    // const dureevieusinagetete = machineresult.dureevieusinagetete;
-    
-    // // Calculate remaining life
-    // const dureevierefroueoutilresult =  dureevierefroueoutil - totalrealise ;
-    // const dureevierefmeulehauteuroutilresult = dureevierefmeulehauteuroutil - totalrealise;
-    // const dureevierefmeulelargeuroutilresult = dureevierefmeulelargeuroutil - totalrealise;
-    // const dureevierefmeulerefmeulechanfreinsoutilresult =  dureevierefmeulerefmeulechanfreinsoutil - totalrealise;
-    // const dureevieoutillageusinagerainureoutilresult =  dureevieoutillageusinagerainureoutil - totalrealise;
-    // const dureevierefmeulerayonnageoutilresult =  dureevierefmeulerayonnageoutil - totalrealise;
-    // const dureevieusinageteteresult = dureevieusinagetete - totalrealise;
-
-    // // Update machine table
-    // await pool.query(
-    //   `UPDATE machine
-    //    SET dureevierefroueoutil = $1, dureevierefmeulehauteuroutil = $2, dureevierefmeulelargeuroutil = $3, dureevierefmeulerefmeulechanfreinsoutil = $4, dureevieoutillageusinagerainureoutil = $5, dureevierefmeulerayonnageoutil = $6, dureevieusinagetete = $7
-    //    WHERE id = $8`,
-    //   [dureevierefroueoutilresult, dureevierefmeulehauteuroutilresult, dureevierefmeulelargeuroutilresult, dureevierefmeulerefmeulechanfreinsoutilresult, dureevieoutillageusinagerainureoutilresult, dureevierefmeulerayonnageoutilresult, dureevieusinageteteresult, machine_id]
-    // );
 
     const production = productionResult.rows[0];
 
     res.status(201).json({
-      message: 'Production created successfully with updated dureedevie',
+      message: 'Production created successfully with the totalplanifie value',
       production
     });
+
   } catch (err) {
     console.error('Error adding production:', err);
     res.status(500).json({ message: 'Internal server error', error: err.message });
   }
 });
+
 
 
 
@@ -254,100 +233,63 @@ router.post('/machine', authenticate, async (req, res) => {
 //new machine post methid correct
 router.post('/machinee', authenticate, async (req, res) => {
   const {
-    nom,
-    referenceproduit,
-    date,
-    cadence_horaire,
-    nombre_operateur_chargement,
-    cadence_horaire_cf,
-    cadence_horaire_csl,
-    nombre_operateur_cf,
+    nom, referenceproduit, date, cadence_horaire, 
+    nombre_operateur_chargement, cadence_horaire_cf, cadence_horaire_csl, nombre_operateur_cf,
     nombre_operateur_csl,
-    tools = [] // default array for tools
+    tools = [] // default array
   } = req.body;
 
   const userId = req.user.userId; // Extract user ID from JWT
 
-  // Start a transaction for database consistency
   try {
-    await pool.query('BEGIN'); // Start transaction
+    // Start the transaction
+    await pool.query('BEGIN');
 
-    // Insert the machine data
-    const machineResult = await pool.query(
-      `INSERT INTO machine 
-      (nom, referenceproduit, date, user_id, cadence_horaire, nombre_operateur_chargement, 
-      cadence_horaire_cf, cadence_horaire_csl, nombre_operateur_cf, nombre_operateur_csl) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
-      RETURNING id`,
-      [
-        nom,
-        referenceproduit,
-        date,
-        userId,
-        cadence_horaire,
-        nombre_operateur_chargement,
-        cadence_horaire_cf,
-        cadence_horaire_csl,
-        nombre_operateur_cf,
-        nombre_operateur_csl
-      ]
+    // Insert the machine
+    const result = await pool.query(
+      `INSERT INTO machine (nom, referenceproduit, date, user_id, cadence_horaire, nombre_operateur_chargement, 
+                            cadence_horaire_cf, cadence_horaire_csl, nombre_operateur_cf, nombre_operateur_csl) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+       RETURNING id`, 
+      [nom, referenceproduit, date, userId, cadence_horaire, nombre_operateur_chargement, cadence_horaire_cf, 
+       cadence_horaire_csl, nombre_operateur_cf, nombre_operateur_csl]
     );
 
-    const machineId = machineResult.rows[0].id; // Get generated machine ID
-    console.log('Machine inserted, generated ID:', machineId);
+    // Get the generated machine id
+    const machineId = result.rows[0].id;
 
-    // If tools are provided, insert them in batch for performance
+    console.log('Machine inserted, generated ID:', machineId); // Debugging line
+
     if (tools.length > 0) {
-      const toolValues = tools.map(tool => [
-        tool.phase,
-        tool.nom_outil,
-        tool.dureedevie,
-        machineId,
-        referenceproduit
-      ]);
-
-      // Prepare placeholders for batch insertion
-      const placeholders = toolValues
-        .map(
-          (_, i) =>
-            `($${i * 5 + 1}, $${i * 5 + 2}, $${i * 5 + 3}, $${i * 5 + 4}, $${i * 5 + 5})`
-        )
-        .join(', ');
-
-      // Batch insert tools
-      await pool.query(
-        `INSERT INTO outil (phase, nom_outil, dureedevie, machine_id, referenceproduit) VALUES ${placeholders}`,
-        toolValues.flat()
-      );
-
-      console.log('Tools inserted:', tools.length);
+      // Insert each tool into the 'outil' table
+      for (const tool of tools) {
+        console.log('Inserting tool:', tool); // Debugging line
+        
+        await pool.query(
+          'INSERT INTO outil (phase, nom_outil, dureedevie, machine_id, referenceproduit) VALUES ($1, $2, $3, $4, $5)',
+          [tool.phase, tool.nom_outil, tool.dureedevie, machineId, referenceproduit] // Use machineId instead of id
+        );
+      }
     } else {
       console.log('No tools provided for insertion.');
     }
 
-    await pool.query('COMMIT'); // Commit the transaction
+    // Commit the transaction
+    await pool.query('COMMIT');
 
-    // Respond with success
     return res.status(201).json({
-      message: 'Machine and tools created successfully',
-      machine: {
-        id: machineId,
-        nombre_operateur_chargement,
-        nombre_operateur_cf,
-        nombre_operateur_csl,
-        tools
-      }
+      message: 'Machine and Outils created successfully',
+      machine: { id: machineId, nombre_operateur_chargement, nombre_operateur_cf, nombre_operateur_csl, tools }
     });
   } catch (error) {
-    await pool.query('ROLLBACK'); // Rollback transaction on error
-    console.error('Error creating machine and tools:', error);
+    console.error('Error creating machine and outils:', error);
 
-    return res.status(500).json({
-      message: 'An error occurred while creating the machine and tools',
-      error: error.message // Only for debugging during development
-    });
+    // Rollback the transaction in case of an error
+    await pool.query('ROLLBACK');
+    return res.status(500).json({ message: 'An error occurred while creating the machine and tools' });
   }
 });
+
 
 
 // Route to fetch all machine details
@@ -411,6 +353,9 @@ router.put('/machine/:id/outil', authenticate, async (req, res) => {
         [tool.phase, tool.nom_outil, tool.dureedevie, id] // Insert tools linked to the updated machine
       );
     }
+
+    // Commit the transaction
+    await pool.query('COMMIT');
 
     return res.status(200).json({ 
       message: 'Machine and Outils updated successfully',
@@ -513,36 +458,18 @@ router.get('/ajouter/plannification/:id', async (req, res) => {
 // Route to add a new machine with user ID
 router.post('/plannification', authenticate, async (req, res) => {
   const {
-    phasechargement,
+    phase,
     id_machine,
-    id_operateur,
-    phasereguleur,
-    operateur_reguleur,
-    phasecsl,
-    operateur_csl,
-    phasecf,
-    operateur_cf,
-    operateur_chargement,
+    operateurs,
     totalplanifie,
     shift,
     nombre_heure_shift1,
     nombre_heure_shift2,
-    phasechargementshif2,
-    phasereguleurshif2,
-    operateur_reguleurshif2,
-    phasecslshift2,
-    operateurcslshift2,
-    phasecfshift2,
-    operateurcfshift2,
-    objectivecf,
-    objectivecsl,
-    objectiveproductionshift2,
-    objectivecslshift2,
-    objectivecfshift2,
-    shift2,
     date_creation,
     start_date, // Add this field if you want to pass the date from the request
-    end_date 
+    end_date, 
+    referenceproduit,
+    nombredemanqueoperateur
   } = req.body;
 
   try {
@@ -551,38 +478,20 @@ router.post('/plannification', authenticate, async (req, res) => {
 
     // Insert the new plannification with all the fields, including date_creation
     const result = await pool.query(
-      'INSERT INTO plannification (phasechargement, id_machine, id_operateur, phasereguleur, operateur_reguleur, phasecsl, operateur_csl, phasecf, operateur_cf, operateur_chargement, totalplanifie, shift, nombre_heure_shift1, nombre_heure_shift2, phasechargementshif2, phasereguleurshif2, operateur_reguleurshif2, phasecslshift2, operateurcslshift2, phasecfshift2, operateurcfshift2, objectivecf, objectivecsl, objectiveproductionshift2, objectivecslshift2, objectivecfshift2, shift2, date_creation, start_date, end_date ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30) RETURNING *',
+      'INSERT INTO plannification (phase, id_machine, operateurs, totalplanifie, shift, nombre_heure_shift1, nombre_heure_shift2, date_creation, start_date, end_date, referenceproduit, nombredemanqueoperateur ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *',
       [
-        phasechargement,
+        phase,
         id_machine,
-        id_operateur,
-        phasereguleur,
-        operateur_reguleur,
-        phasecsl,
-        operateur_csl,
-        phasecf,
-        operateur_cf,
-        operateur_chargement,
+        operateurs,
         totalplanifie,
         shift,
         nombre_heure_shift1,
         nombre_heure_shift2,
-        phasechargementshif2,
-        phasereguleurshif2,
-        operateur_reguleurshif2,
-        phasecslshift2,
-        operateurcslshift2,
-        phasecfshift2,
-        operateurcfshift2,
-        objectivecf,
-        objectivecsl,
-        objectiveproductionshift2,
-        objectivecslshift2,
-        objectivecfshift2,
-        shift2,
         currentDate, // Add the current date here,
         start_date,
-        end_date
+        end_date,
+        referenceproduit,
+        nombredemanqueoperateur
       ]
     );
 
@@ -637,6 +546,8 @@ router.get('/plannifications', authenticate, async (req, res) => {
         start_date: item.start_date,
         end_date: item.end_date,
         id_machine: item.id_machine,
+        totalplanifie: item.totalplanifie,
+        phase: item.phase,
         machine_name: machine ? machine.nom : "Unknown Machine", // Get machine name
       };
     }));
