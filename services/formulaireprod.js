@@ -233,74 +233,50 @@ router.post('/machine', authenticate, async (req, res) => {
 //new machine post methid correct
 router.post('/machinee', authenticate, async (req, res) => {
   const {
-    nom,
-    referenceproduit,
-    date,
-    cadence_horaire,
-    nombre_operateur_chargement,
-    cadence_horaire_cf,
-    cadence_horaire_csl,
-    nombre_operateur_cf,
+    nom, referenceproduit, date, cadence_horaire, 
+    nombre_operateur_chargement, cadence_horaire_cf, cadence_horaire_csl, nombre_operateur_cf,
     nombre_operateur_csl,
     tools = [] // default array
   } = req.body;
 
-  const userId = req.user?.userId; // Extract user ID from JWT
-
-  // Input validation
-  if (!nom || !referenceproduit || !userId) {
-    return res.status(400).json({ message: 'Missing required fields: nom, referenceproduit, or userId' });
-  }
+  const userId = req.user.userId; // Extract user ID from JWT
 
   try {
-    console.log('Request body:', req.body); // Log the request body for debugging
+    // Log input values for debugging
+    console.log('Received data:', {
+      nom, referenceproduit, date, userId, cadence_horaire, 
+      nombre_operateur_chargement, cadence_horaire_cf, cadence_horaire_csl, 
+      nombre_operateur_cf, nombre_operateur_csl, tools
+    });
 
     // Start the transaction
     await pool.query('BEGIN');
 
     // Insert the machine
     const result = await pool.query(
-      `INSERT INTO machine (nom, referenceproduit, date, user_id, cadence_horaire, 
-                            nombre_operateur_chargement, cadence_horaire_cf, 
-                            cadence_horaire_csl, nombre_operateur_cf, nombre_operateur_csl) 
+      `INSERT INTO machine (nom, referenceproduit, date, user_id, cadence_horaire, nombre_operateur_chargement, 
+                            cadence_horaire_cf, cadence_horaire_csl, nombre_operateur_cf, nombre_operateur_csl) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
-       RETURNING id`,
-      [
-        nom,
-        referenceproduit,
-        date || null, // Default to null if date is not provided
-        userId,
-        cadence_horaire || 0, // Default numeric fields to 0
-        nombre_operateur_chargement || 0,
-        cadence_horaire_cf || 0,
-        cadence_horaire_csl || 0,
-        nombre_operateur_cf || 0,
-        nombre_operateur_csl || 0
-      ]
+       RETURNING id`, 
+      [nom, referenceproduit, date, userId, cadence_horaire, nombre_operateur_chargement, cadence_horaire_cf, 
+       cadence_horaire_csl, nombre_operateur_cf, nombre_operateur_csl]
     );
 
-    // Get the generated machine ID
+    // Get the generated machine id
     const machineId = result.rows[0].id;
-    console.log('Machine inserted, generated ID:', machineId); // Debugging log
 
-    if (Array.isArray(tools) && tools.length > 0) {
-      // Insert tools into the 'outil' table
-      const toolQueries = tools.map((tool) => {
-        console.log('Inserting tool:', tool); // Debugging log
-        return pool.query(
+    console.log('Machine inserted, generated ID:', machineId); // Debugging line
+
+    if (tools.length > 0) {
+      // Insert each tool into the 'outil' table
+      for (const tool of tools) {
+        console.log('Inserting tool:', tool); // Debugging line
+        
+        await pool.query(
           'INSERT INTO outil (phase, nom_outil, dureedevie, machine_id, referenceproduit) VALUES ($1, $2, $3, $4, $5)',
-          [
-            tool.phase,
-            tool.nom_outil,
-            tool.dureedevie || 0, // Default to 0 if dureedevie is missing
-            machineId,
-            referenceproduit
-          ]
+          [tool.phase, tool.nom_outil, tool.dureedevie, machineId, referenceproduit] // Use machineId instead of id
         );
-      });
-
-      // Execute all tool insertion queries
-      await Promise.all(toolQueries);
+      }
     } else {
       console.log('No tools provided for insertion.');
     }
@@ -309,21 +285,18 @@ router.post('/machinee', authenticate, async (req, res) => {
     await pool.query('COMMIT');
 
     return res.status(201).json({
-      message: 'Machine and tools created successfully',
-      machine: {
-        id: machineId,
-        nombre_operateur_chargement,
-        nombre_operateur_cf,
-        nombre_operateur_csl,
-        tools
-      }
+      message: 'Machine and Outils created successfully',
+      machine: { id: machineId, nombre_operateur_chargement, nombre_operateur_cf, nombre_operateur_csl, tools }
     });
   } catch (error) {
-    console.error('Error creating machine and tools:', error);
+    console.error('Error creating machine and outils:', error.message);
+
+    // Log the full stack trace for debugging
+    if (error.stack) console.error(error.stack); 
 
     // Rollback the transaction in case of an error
     await pool.query('ROLLBACK');
-    return res.status(500).json({ message: 'An error occurred while creating the machine and tools' });
+    return res.status(500).json({ message: 'An error occurred while creating the machine and tools', error: error.message });
   }
 });
 
