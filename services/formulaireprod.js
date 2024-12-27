@@ -328,6 +328,123 @@ router.post('/machinee', authenticate, async (req, res) => {
 });
 
 
+router.put('/machinee/:id', authenticate, async (req, res) => {
+  const {
+    nom,
+    referenceproduit,
+    date,
+    cadence_horaire,
+    nombre_operateur_chargement,
+    cadence_horaire_cf,
+    cadence_horaire_csl,
+    nombre_operateur_cf,
+    nombre_operateur_csl,
+    tools = [] // default array
+  } = req.body;
+
+  const userId = req.user.userId; // Extract user ID from JWT
+  const machineId = req.params.id; // Machine ID to update
+
+  try {
+    // Start the transaction
+    await pool.query('BEGIN');
+
+    // Update the machine
+    const updateMachineResult = await pool.query(
+      `UPDATE machine
+       SET nom = $1,
+           referenceproduit = $2,
+           date = $3,
+           user_id = $4,
+           cadence_horaire = $5,
+           nombre_operateur_chargement = $6,
+           cadence_horaire_cf = $7,
+           cadence_horaire_csl = $8,
+           nombre_operateur_cf = $9,
+           nombre_operateur_csl = $10
+       WHERE id = $11`,
+      [
+        nom,
+        referenceproduit,
+        date || null,
+        userId,
+        cadence_horaire || 0,
+        nombre_operateur_chargement || 0,
+        cadence_horaire_cf || 0,
+        cadence_horaire_csl || 0,
+        nombre_operateur_cf || 0,
+        nombre_operateur_csl || 0,
+        machineId
+      ]
+    );
+
+    if (updateMachineResult.rowCount === 0) {
+      // Rollback and return if the machine doesn't exist
+      await pool.query('ROLLBACK');
+      return res.status(404).json({ message: 'Machine not found' });
+    }
+
+    console.log('Machine updated, ID:', machineId); // Debugging line
+
+    // Fetch existing tools for the machine
+    const existingToolsResult = await pool.query('SELECT id FROM outil WHERE machine_id = $1', [machineId]);
+    const existingToolIds = existingToolsResult.rows.map(row => row.id);
+
+    // Split tools into categories
+    const toolsToUpdate = tools.filter(tool => tool.id && existingToolIds.includes(tool.id));
+    const toolsToAdd = tools.filter(tool => !tool.id);
+    const toolsToDelete = existingToolIds.filter(id => !tools.some(tool => tool.id === id));
+
+    // Update existing tools
+    for (const tool of toolsToUpdate) {
+      await pool.query(
+        `UPDATE outil
+         SET phase = $1,
+             nom_outil = $2,
+             dureedevie = $3,
+             referenceproduit = $4
+         WHERE id = $5`,
+        [tool.phase, tool.nom_outil, tool.dureedevie, referenceproduit, tool.id]
+      );
+    }
+
+    // Add new tools
+    for (const tool of toolsToAdd) {
+      await pool.query(
+        `INSERT INTO outil (phase, nom_outil, dureedevie, machine_id, referenceproduit)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [tool.phase, tool.nom_outil, tool.dureedevie, machineId, referenceproduit]
+      );
+    }
+
+    // Delete removed tools
+    for (const toolId of toolsToDelete) {
+      await pool.query('DELETE FROM outil WHERE id = $1', [toolId]);
+    }
+
+    // Commit the transaction
+    await pool.query('COMMIT');
+
+    return res.status(200).json({
+      message: 'Machine and tools updated successfully',
+      machine: {
+        id: machineId,
+        nombre_operateur_chargement,
+        nombre_operateur_cf,
+        nombre_operateur_csl,
+        tools
+      }
+    });
+  } catch (error) {
+    console.error('Error updating machine and tools:', error);
+
+    // Rollback the transaction in case of an error
+    await pool.query('ROLLBACK');
+    return res.status(500).json({ message: 'An error occurred while updating the machine and tools' });
+  }
+});
+
+
 
 // Route to fetch all machine details
 router.get('/machines', async (req, res) => {
