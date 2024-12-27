@@ -499,6 +499,65 @@ router.put('/machine/:id/outil', authenticate, async (req, res) => {
 
 
 
+router.delete('/machinee/:id', authenticate, async (req, res) => {
+  const machineId = req.params.id; // Get machine ID from URL parameter
+  const userId = req.user.userId; // Extract user ID from JWT
+
+  try {
+    // Log the machine ID and user ID for debugging
+    console.log('Received machine ID to delete:', machineId, 'User ID:', userId);
+
+    // Start the transaction
+    await pool.query('BEGIN');
+
+    // Check if the machine exists and if the user is authorized to delete it
+    const machineResult = await pool.query(
+      'SELECT user_id FROM machine WHERE id = $1',
+      [machineId]
+    );
+
+    if (machineResult.rowCount === 0) {
+      return res.status(404).json({ message: 'Machine not found' });
+    }
+
+    const machine = machineResult.rows[0];
+
+    if (machine.user_id !== userId) {
+      return res.status(403).json({ message: 'You are not authorized to delete this machine' });
+    }
+
+    // Delete all tools associated with the machine
+    await pool.query(
+      'DELETE FROM outil WHERE machine_id = $1',
+      [machineId]
+    );
+    console.log('Tools deleted for machine ID:', machineId);
+
+    // Delete the machine
+    await pool.query(
+      'DELETE FROM machine WHERE id = $1',
+      [machineId]
+    );
+    console.log('Machine deleted:', machineId);
+
+    // Commit the transaction
+    await pool.query('COMMIT');
+
+    return res.status(200).json({
+      message: 'Machine and associated tools deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting machine and tools:', error.message);
+
+    // Log the full stack trace for debugging
+    if (error.stack) console.error(error.stack);
+
+    // Rollback the transaction in case of an error
+    await pool.query('ROLLBACK');
+    return res.status(500).json({ message: 'An error occurred while deleting the machine and tools', error: error.message });
+  }
+});
+
 // Route to get production data based on machine ID
 router.get('/production/machine/:id', async (req, res) => {
   const { id } = req.params; // Fetch the machine ID from URL parameters
