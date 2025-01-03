@@ -853,4 +853,32 @@ router.post('/addoperateur', async(req,res)=>{
 })
 
 
+router.post('/addregleur', authenticate , async(req,res)=>{
+  try{
+    const {nom,prenom} = req.body;
+    const result = await pool.query('INSERT INTO regleur (nom, prenom)  VALUES ($1,$2) RETURNING *', [nom, prenom]);
+    return res.status(201).json({message:"regleur added succefully", regleur: result.rows})
+ 
+  }catch(error){
+    return res.status(500).json({message:'internal server'})
+  }
+});
+
+router.get('/getregleur', authenticate, async (req, res) => {
+  try {
+    // Await the query execution
+    const result = await pool.query('SELECT * FROM regleur');
+
+    // Return a 200 status (OK) and send all rows, not just the first row
+    return res.status(200).json({ 
+      message: 'Regleur handled successfully', 
+      regleurs: result.rows 
+    });
+  } catch (error) {
+    console.error('Error fetching regleur:', error); // Log the error for debugging
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+
 module.exports = router;
