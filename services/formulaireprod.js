@@ -805,6 +805,24 @@ router.get('/getoperateurs', async (req, res) => {
   }
 });
 
+//getreguleurs
+
+router.get('/getregleur', authenticate, async (req, res) => {
+  try {
+    // Await the query execution
+    const result = await pool.query('SELECT * FROM regleur');
+
+    // Return a 200 status (OK) and send all rows, not just the first row
+    return res.status(200).json({ 
+      message: 'Regleur handled successfully', 
+      regleurs: result.rows 
+    });
+  } catch (error) {
+    console.error('Error fetching regleur:', error); // Log the error for debugging
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 //get by operateur id
 router.get('/getoperateur/:id', async(req,res)=>{
   try{
