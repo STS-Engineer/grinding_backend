@@ -748,12 +748,12 @@ router.get('/plannifications', authenticate, async (req, res) => {
 
 
 router.get('/plannificationss', authenticate, async (req, res) => {
-  const { phase, date_creation } = req.query;
+  const { phase, shift, date_creation } = req.query;
 
   try {
     const result = await pool.query(
-      'SELECT * FROM plannification WHERE phase = $1 AND date_creation = $2',
-      [phase, date_creation]
+      'SELECT * FROM plannification WHERE phase = $1 AND shift = $2 AND date_creation = $3 ',
+      [phase, shift, date_creation]
     );
     res.status(200).json(result.rows);
   } catch (err) {
