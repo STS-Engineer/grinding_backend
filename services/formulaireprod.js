@@ -787,6 +787,40 @@ router.get('/plannification/:machineId', async (req, res) => {
 });
 
 
+
+
+router.get('/check/plannification', async (req, res) => {
+  const { id_machine, start_date, end_date } = req.query;
+
+  // Validate required parameters
+  if (!id_machine || !start_date || !end_date) {
+    return res.status(400).json({ error: 'Missing required query parameters: id_machine, start_date, or end_date' });
+  }
+
+  try {
+    // PostgreSQL query to check overlapping plannification
+    const query = `
+      SELECT 1 
+      FROM plannification
+      WHERE id_machine = $1
+        AND start_date <= $2  -- Ensure the start_date overlaps
+        AND end_date >= $3    -- Ensure the end_date overlaps
+      LIMIT 1;
+    `;
+
+    // Execute the query with parameterized inputs
+    const result = await pool.query(query, [id_machine, end_date, start_date]);
+
+    // Respond with the existence check
+    res.status(200).json({ exists: result.rowCount > 0 });
+  } catch (error) {
+    console.error('Error checking plannification:', error);
+
+    // Respond with a generic error message
+    res.status(500).json({ error: 'Failed to check plannification.' });
+  }
+});
+
 router.get('/getoperateurs', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM operateur');
