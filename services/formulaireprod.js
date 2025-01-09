@@ -300,6 +300,25 @@ router.post('/machinee', authenticate, async (req, res) => {
   }
 });
 
+router.get('/plannificationss', authenticate, async (req, res) => {
+  const { phase, shift, date_creation, id_machine } = req.query;
+
+  try {
+    const result = await pool.query(
+      'SELECT * FROM plannification WHERE phase = $1 AND shift = $2 AND date_creation = $3 AND id_machine = $4 ',
+      [phase, shift, date_creation, id_machine]
+    );
+    res.status(200).json(result.rows);
+  } catch (err) {
+    console.error('Error fetching plannifications:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+
+
+
+
 
 router.put('/machinee/:id', authenticate, async (req, res) => {
   const {
