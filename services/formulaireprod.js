@@ -679,7 +679,9 @@ router.post('/plannification', authenticate, async (req, res) => {
 
   try {
     // Use CURRENT_TIMESTAMP if no date_creation is passed in the request
-    const currentDate = date_creation || new Date().toISOString(); // Default to current date if not provided
+        const currentDate = date_creation 
+        ? new Date(date_creation).toISOString().split("T")[0] 
+        : new Date().toISOString().split("T")[0];
 
     // Insert the new plannification with all the fields, including date_creation
     const result = await pool.query(
