@@ -975,6 +975,65 @@ router.post('/ajouterprobleme', authenticate, async (req, res) => {
     });
   }
 });
+//defauts
+router.post('/ajouterdefaut', authenticate, async (req, res) => {
+  const { defaut } = req.body;
+
+  try {
+    if (!defaut) {
+      return res.status(400).json({ message: 'The "defaut" field is required' });
+    }
+
+    // Execute the query
+    const result = await pool.query(
+      'INSERT INTO typedefaut (defaut) VALUES ($1) RETURNING *',
+      [defaut]
+    );
+
+    // Debugging: Log the result to ensure rows exist
+    console.log('Query result:', result);
+
+    // Check if rows are returned
+    if (!result.rows || result.rows.length === 0) {
+      return res.status(500).json({ message: 'defaut was not inserted into the database' });
+    }
+
+    // Extract the new problem
+    const newDefaut = result.rows[0];
+
+    // Return a success response
+    return res.status(201).json({
+      message: 'defaut created successfully',
+      probleme: newDefaut,
+    });
+  } catch (error) {
+    console.error('Error creating problem:', error.message);
+
+    // Return an error response
+    return res.status(500).json({
+      message: 'An error occurred while creating the problem',
+      error: error.message,
+    });
+  }
+});
+
+router.get('/getdefauts', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM typedefaut');
+
+    // Assuming result.rows contains the data
+    return res.status(200).json({
+      message: 'Defaut retrieved successfully',
+      operateurs: result.rows, // Sending only the data rows
+    });
+  } catch (error) {
+    console.error('Failed to retrieve Probleme:', error);
+    return res.status(500).json({
+      message: 'Failed to retrieve Probleme',
+      error: error.message, // Optional: Include the error message for debugging
+    });
+  }
+});
 
 
 module.exports = router;
