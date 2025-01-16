@@ -1059,7 +1059,6 @@ router.post('/ajouterprobleme', authenticate, async (req, res) => {
   }
 });
 
-
 router.post('/ajouterproblemecontrole', authenticate, async (req, res) => {
   const { problemecontrole } = req.body;
 
@@ -1070,7 +1069,7 @@ router.post('/ajouterproblemecontrole', authenticate, async (req, res) => {
 
     // Execute the query
     const result = await pool.query(
-      'INSERT INTO problemecontrole (problemecontrole) VALUES ($1) RETURNING *',
+      'INSERT INTO postecontrole (problemecontrole) VALUES ($1) RETURNING *',
       [problemecontrole]
     );
 
@@ -1097,6 +1096,24 @@ router.post('/ajouterproblemecontrole', authenticate, async (req, res) => {
     return res.status(500).json({
       message: 'An error occurred while creating the problem',
       error: error.message,
+    });
+  }
+});
+
+router.get('/getproblemespostedecontrole', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM postecontrole');
+
+    // Assuming result.rows contains the data
+    return res.status(200).json({
+      message: 'Probleme retrieved successfully',
+      operateurs: result.rows, // Sending only the data rows
+    });
+  } catch (error) {
+    console.error('Failed to retrieve Probleme:', error);
+    return res.status(500).json({
+      message: 'Failed to retrieve Probleme',
+      error: error.message, // Optional: Include the error message for debugging
     });
   }
 });
