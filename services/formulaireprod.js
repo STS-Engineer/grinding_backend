@@ -860,6 +860,89 @@ router.get('/getoperateurs', async (req, res) => {
   }
 });
 
+
+router.put('/operateur/:id', authenticate, async (req, res) => {
+  const {matricule, nom, prenom } = req.body;
+  const RegleurId = req.params.id; // Regleur ID to update
+
+  try {
+    // Start the transaction
+    await pool.query('BEGIN');
+
+    // Update the regleur
+    const updateOperateurResult = await pool.query(
+      `UPDATE operateur
+       SET matricule = $1, nom = $2, prenom = $3
+       WHERE id = $4`, // Fixed the query by removing the extra comma before the WHERE clause
+      [matricule, nom, prenom, RegleurId]
+    );
+
+    if (updateOperateurResult.rowCount === 0) {
+      // Rollback and return if the regleur doesn't exist
+      await pool.query('ROLLBACK');
+      return res.status(404).json({ message: 'Operateur not found' });
+    }
+
+    // Commit the transaction
+    await pool.query('COMMIT');
+
+    return res.status(200).json({
+      message: 'Operateur updated successfully',
+      Regleur: {
+        id: RegleurId,
+        matricule,
+        nom,
+        prenom
+      }
+    });
+  } catch (error) {
+    console.error('Error updating Operateur:', error);
+
+    // Rollback the transaction in case of an error
+    await pool.query('ROLLBACK');
+    return res.status(500).json({ message: 'An error occurred while updating the Operateur' });
+  }
+});
+
+// delete operateur 
+
+router.delete('/operateur/:id', authenticate, async (req, res) => {
+  const operateurId = req.params.id; // Get machine ID from URL parameter
+  const userId = req.user.userId; // Extract user ID from JWT
+
+  try {
+    // Log the machine ID and user ID for debugging
+    console.log('Received operateur ID to delete:', operateurId, 'User ID:', userId);
+
+    // Start the transaction
+    await pool.query('BEGIN');
+
+
+    // Delete the regleur
+    await pool.query(
+      'DELETE FROM operateur WHERE id = $1',
+      [operateurId]
+    );
+    
+
+    // Commit the transaction
+    await pool.query('COMMIT');
+
+    return res.status(200).json({
+      message: 'Operateur a été supprimé',
+    });
+  } catch (error) {
+    console.error('Error deleting Opérateur :', error.message);
+
+    // Log the full stack trace for debugging
+    if (error.stack) console.error(error.stack);
+
+    // Rollback the transaction in case of an error
+    await pool.query('ROLLBACK');
+    return res.status(500).json({ message: 'An error occurred while deleting the operateur and tools', error: error.message });
+  }
+});
+
 //getreguleurs
 
 router.get('/getregleur', authenticate, async (req, res) => {
@@ -1087,6 +1170,48 @@ router.delete('/regleur/:id', authenticate, async (req, res) => {
     // Rollback the transaction in case of an error
     await pool.query('ROLLBACK');
     return res.status(500).json({ message: 'An error occurred while deleting the machine and tools', error: error.message });
+  }
+});
+
+router.put('/regleur/:id', authenticate, async (req, res) => {
+  const { nom, prenom } = req.body;
+  const RegleurId = req.params.id; // Regleur ID to update
+
+  try {
+    // Start the transaction
+    await pool.query('BEGIN');
+
+    // Update the regleur
+    const updateRegleurResult = await pool.query(
+      `UPDATE regleur
+       SET nom = $1, prenom = $2
+       WHERE id = $3`, // Fixed the query by removing the extra comma before the WHERE clause
+      [nom, prenom, RegleurId]
+    );
+
+    if (updateRegleurResult.rowCount === 0) {
+      // Rollback and return if the regleur doesn't exist
+      await pool.query('ROLLBACK');
+      return res.status(404).json({ message: 'Regleur not found' });
+    }
+
+    // Commit the transaction
+    await pool.query('COMMIT');
+
+    return res.status(200).json({
+      message: 'Regleur updated successfully',
+      Regleur: {
+        id: RegleurId,
+        nom,
+        prenom
+      }
+    });
+  } catch (error) {
+    console.error('Error updating regleur:', error);
+
+    // Rollback the transaction in case of an error
+    await pool.query('ROLLBACK');
+    return res.status(500).json({ message: 'An error occurred while updating the regleur' });
   }
 });
 
