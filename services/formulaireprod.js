@@ -1059,6 +1059,48 @@ router.post('/ajouterprobleme', authenticate, async (req, res) => {
   }
 });
 
+
+router.post('/ajouterproblemecontrole', authenticate, async (req, res) => {
+  const { problemecontrole } = req.body;
+
+  try {
+    if (!problemecontrole) {
+      return res.status(400).json({ message: 'The "probleme" field is required' });
+    }
+
+    // Execute the query
+    const result = await pool.query(
+      'INSERT INTO problemecontrole (problemecontrole) VALUES ($1) RETURNING *',
+      [problemecontrole]
+    );
+
+    // Debugging: Log the result to ensure rows exist
+    console.log('Query result:', result);
+
+    // Check if rows are returned
+    if (!result.rows || result.rows.length === 0) {
+      return res.status(500).json({ message: 'Problem was not inserted into the database' });
+    }
+
+    // Extract the new problem
+    const newProbleme = result.rows[0];
+
+    // Return a success response
+    return res.status(201).json({
+      message: 'Problem created successfully',
+      problemecontrole: newProbleme,
+    });
+  } catch (error) {
+    console.error('Error creating problem:', error.message);
+
+    // Return an error response
+    return res.status(500).json({
+      message: 'An error occurred while creating the problem',
+      error: error.message,
+    });
+  }
+});
+
 router.get('/getproblemes', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM problemetechnique');
