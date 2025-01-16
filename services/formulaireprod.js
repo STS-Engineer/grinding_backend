@@ -1274,6 +1274,64 @@ router.put('/regleur/:id', authenticate, async (req, res) => {
   }
 });
 
+router.post('/ajouteroutil', authenticate, async (req, res) => {
+  const { phase, nom_outil, dureedevie, referenceproduit } = req.body;
+
+  try {
+  
+
+    // Execute the query
+    const result = await pool.query(
+      'INSERT INTO outil (phase, nom_outil, dureedevie, referenceproduit) VALUES ($1, $2,$3,$4) RETURNING *',
+      [phase, nom_outil, dureedevie, referenceproduit]
+    );
+
+    // Debugging: Log the result to ensure rows exist
+    console.log('Query result:', result);
+
+    // Check if rows are returned
+    if (!result.rows || result.rows.length === 0) {
+      return res.status(500).json({ message: 'Outil was not inserted into the database' });
+    }
+
+    // Extract the new problem
+    const newOutil = result.rows[0];
+
+    // Return a success response
+    return res.status(201).json({
+      message: 'Outil created successfully',
+      problemecontrole: newOutil,
+    });
+  } catch (error) {
+    console.error('Error creating problem:', error.message);
+
+    // Return an error response
+    return res.status(500).json({
+      message: 'An error occurred while creating the problem',
+      error: error.message,
+    });
+  }
+});
+
+router.get('/getoutil', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM outil');
+
+    // Assuming result.rows contains the data
+    return res.status(200).json({
+      message: 'Outil retrieved successfully',
+      operateurs: result.rows, // Sending only the data rows
+    });
+  } catch (error) {
+    console.error('Failed to retrieve Outil:', error);
+    return res.status(500).json({
+      message: 'Failed to retrieve Outil',
+      error: error.message, // Optional: Include the error message for debugging
+    });
+  }
+});
+
+
 
 
 module.exports = router;
