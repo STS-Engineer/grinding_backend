@@ -266,32 +266,18 @@ router.post('/machinee', authenticate, async (req, res) => {
 
     console.log('Machine inserted, generated ID:', machineId); // Debugging line
 
-    if (tools.length > 0) {
-      // Update each tool in the 'outil' table based on tool names (nom_outil)
+     if (tools.length > 0) {
+      // Insert each tool into the 'outil' table
       for (const tool of tools) {
-        const { nom_outil } = tool; // Tool name (no need for toolId)
-
-        // Get the toolId based on the tool name
-        const toolResult = await pool.query(
-          'SELECT id FROM outil WHERE nom_outil = $1 LIMIT 1',
-          [nom_outil]
+        console.log('Inserting tool:', tool); // Debugging line
+        
+        await pool.query(
+          'INSERT INTO outil (phase, nom_outil, dureedevie, machine_id, referenceproduit) VALUES ($1, $2, $3, $4, $5)',
+          [tool.phase, tool.nom_outil, tool.dureedevie, machineId, referenceproduit] // Use machineId instead of id
         );
-
-        const toolId = toolResult.rows[0]?.id;
-        if (toolId) {
-          console.log('Updating tool with machine_id:', toolId);
-
-          // Update the tool's machine_id
-          await pool.query(
-            'UPDATE outil SET machine_id = $1 WHERE id = $2',
-            [machineId, toolId]
-          );
-        } else {
-          console.log(`Tool with name "${nom_outil}" not found.`);
-        }
       }
     } else {
-      console.log('No tools provided for updating.');
+      console.log('No tools provided for insertion.');
     }
 
     // Commit the transaction
