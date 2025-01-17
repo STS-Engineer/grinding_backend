@@ -1063,9 +1063,6 @@ router.post('/ajouterproblemecontrole', authenticate, async (req, res) => {
   const { problemecontrole } = req.body;
 
   try {
-    if (!problemecontrole) {
-      return res.status(400).json({ message: 'The "probleme" field is required' });
-    }
 
     // Execute the query
     const result = await pool.query(
