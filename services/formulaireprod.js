@@ -234,9 +234,8 @@ router.post('/machine', authenticate, async (req, res) => {
 router.post('/machinee', authenticate, async (req, res) => {
   const {
     nom, referenceproduit, date, cadence_horaire, 
-    nombre_operateur_chargement, cadence_horaire_cf, cadence_horaire_csl, nombre_operateur_cf,
-    nombre_operateur_csl,
-    tools = [] // default array
+    nombre_operateur_chargement, cadence_horaire_cf, cadence_horaire_csl, 
+    nombre_operateur_cf, nombre_operateur_csl, tools = [] 
   } = req.body;
 
   const userId = req.user.userId; // Extract user ID from JWT
@@ -268,17 +267,31 @@ router.post('/machinee', authenticate, async (req, res) => {
     console.log('Machine inserted, generated ID:', machineId); // Debugging line
 
     if (tools.length > 0) {
-      // Insert each tool into the 'outil' table
+      // Update each tool in the 'outil' table based on tool names (nom_outil)
       for (const tool of tools) {
-        console.log('Inserting tool:', tool); // Debugging line
-        
-        await pool.query(
-          'INSERT INTO outil (phase, nom_outil, dureedevie, machine_id, referenceproduit) VALUES ($1, $2, $3, $4, $5)',
-          [tool.phase, tool.nom_outil, tool.dureedevie, machineId, referenceproduit] // Use machineId instead of id
+        const { nom_outil } = tool; // Tool name (no need for toolId)
+
+        // Get the toolId based on the tool name
+        const toolResult = await pool.query(
+          'SELECT id FROM outil WHERE nom_outil = $1 LIMIT 1',
+          [nom_outil]
         );
+
+        const toolId = toolResult.rows[0]?.id;
+        if (toolId) {
+          console.log('Updating tool with machine_id:', toolId);
+
+          // Update the tool's machine_id
+          await pool.query(
+            'UPDATE outil SET machine_id = $1 WHERE id = $2',
+            [machineId, toolId]
+          );
+        } else {
+          console.log(`Tool with name "${nom_outil}" not found.`);
+        }
       }
     } else {
-      console.log('No tools provided for insertion.');
+      console.log('No tools provided for updating.');
     }
 
     // Commit the transaction
@@ -290,9 +303,6 @@ router.post('/machinee', authenticate, async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating machine and outils:', error.message);
-
-    // Log the full stack trace for debugging
-    if (error.stack) console.error(error.stack); 
 
     // Rollback the transaction in case of an error
     await pool.query('ROLLBACK');
