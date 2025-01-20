@@ -71,7 +71,7 @@ router.post('/login', async (req, res) => {
 // Ajouter form prod
 router.post('/prod', async (req, res) => {
   const {
-    referenceproduit, date, shift, phase, 
+    referenceproduit, date, shift, phase, totalplanifie,
     commentaires, totalrealise, machine_id, defaut, typedefautproduction,
     totaldefautproduction, typedefautcf, totaldefautcf, typedefautcsl, totaldefautcsl, typedeproblemeproduction,
     dureedeproblemeproduction, typedeproblemecf, dureedeproblemecf, typedeproblemecsl, dureedeproblemecsl, totalproduitcf, totalproduitcsl
@@ -83,16 +83,50 @@ router.post('/prod', async (req, res) => {
 
     // Step 3: Insert production record, including totalplanifie
     const productionResult = await pool.query(
-      `INSERT INTO production (referenceproduit, date, shift, phase, commentaires, totalrealise, machine_id, defaut, typedefautproduction, totaldefautproduction, typedefautcf, totaldefautcf, typedefautcsl, totaldefautcsl, typedeproblemeproduction, dureedeproblemeproduction, typedeproblemecf, dureedeproblemecf, typedeproblemecsl, dureedeproblemecsl, totalproduitcf, totalproduitcsl)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING *`,
-      [referenceproduit, date, shift, phase, commentaires, totalrealise, machine_id, defaut, typedefautproduction, totaldefautproduction, typedefautcf, totaldefautcf, typedefautcsl, totaldefautcsl, typedeproblemeproduction, dureedeproblemeproduction, typedeproblemecf, dureedeproblemecf, typedeproblemecsl, dureedeproblemecsl, totalproduitcf, totalproduitcsl]
+      `INSERT INTO production (referenceproduit, date, shift, phase, totalplanifie, commentaires, totalrealise, machine_id, defaut, typedefautproduction, totaldefautproduction, typedefautcf, totaldefautcf, typedefautcsl, totaldefautcsl, typedeproblemeproduction, dureedeproblemeproduction, typedeproblemecf, dureedeproblemecf, typedeproblemecsl, dureedeproblemecsl, totalproduitcf, totalproduitcsl)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23) RETURNING *`,
+      [referenceproduit, date, shift, phase, totalplanifie, commentaires, totalrealise, machine_id, defaut, typedefautproduction, totaldefautproduction, typedefautcf, totaldefautcf, typedefautcsl, totaldefautcsl, typedeproblemeproduction, dureedeproblemeproduction, typedeproblemecf, dureedeproblemecf, typedeproblemecsl, dureedeproblemecsl, totalproduitcf, totalproduitcsl]
     );
 
     const production = productionResult.rows[0];
+    // Step 2: Retrieve the current dureedeviepointeur based on outil_id
+    const outilResult = await pool.query(
+      `SELECT * FROM outil `
+    );
+  
+
+    if (outilResult.rows.length === 0) {
+      return res.status(404).json({ message: 'No matching outil found for the provided id' });
+    }
+
+  // Prepare an array of promises to update all outils
+const updatePromises = outilResult.rows.map(async (outil) => {
+  const currentDureeDeviePointeur = outil.dureedeviepointeur;
+  const updatedDureeDeviePointeur = Math.max(0, currentDureeDeviePointeur - totalrealise);  // Assuming `totalrealise` is the same for all rows
+
+  console.log('Current DureeDeviePointeur:', currentDureeDeviePointeur);
+  console.log('Updated DureeDeviePointeur:', updatedDureeDeviePointeur);
+
+  // Update each outil
+  return pool.query(
+    `UPDATE outil 
+     SET dureedeviepointeur = $1 
+     WHERE id = $2 
+     RETURNING *`,
+    [updatedDureeDeviePointeur, outil.id]
+  );
+});
+
+// Wait for all the update operations to finish
+const updatedOutils = await Promise.all(updatePromises);
+
+
+
 
     res.status(201).json({
       message: 'Production created successfully with the totalplanifie value',
-      production
+      production,
+      updatedOutil: updatedOutils
     });
 
   } catch (err) {
@@ -100,7 +134,6 @@ router.post('/prod', async (req, res) => {
     res.status(500).json({ message: 'Internal server error', error: err.message });
   }
 });
-
 
 
 
@@ -270,10 +303,10 @@ router.post('/machinee', authenticate, async (req, res) => {
       // Insert each tool into the 'outil' table
       for (const tool of tools) {
         console.log('Inserting tool:', tool); // Debugging line
-        
+        const dureedeviepointeur = tool.dureedeviepointeur ?? tool.dureedevie;
         await pool.query(
-          'INSERT INTO outil (phase, nom_outil, dureedevie, machine_id, referenceproduit) VALUES ($1, $2, $3, $4, $5)',
-          [tool.phase, tool.nom_outil, tool.dureedevie, machineId, referenceproduit] // Use machineId instead of id
+          'INSERT INTO outil (phase, nom_outil, dureedevie, machine_id, referenceproduit, dureedeviepointeur) VALUES ($1, $2, $3, $4, $5, $6)',
+          [tool.phase, tool.nom_outil, tool.dureedevie, machineId, tool.referenceproduit, dureedeviepointeur] // Use machineId instead of id
         );
       }
     } else {
@@ -1331,6 +1364,46 @@ router.get('/tools', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Error fetching tools:', error);
     res.status(500).json({ message: 'Failed to fetch tools' });
+  }
+});
+router.put('/resetdureedevie/:id', async (req, res) => {
+  const { id } = req.params; // Extract the outil ID from the request parameters
+
+  try {
+    // Fetch the dureedevie from the specified outil
+    const outildureedevie = await pool.query('SELECT dureedevie FROM outil WHERE id = $1', [id]);
+
+    // Check if the outil exists and retrieve the dureedevie
+    if (outildureedevie.rows.length === 0) {
+      return res.status(404).json({ message: `No outil found with id: ${id}` });
+    }
+
+    const dureedevie = outildureedevie.rows[0].dureedevie; // Access the 'dureedevie' field
+    console.log('Dureedevie:', dureedevie); // Optional debugging line
+
+    // Update the dureedeviepointeur column with the value of dureedevie
+    const result = await pool.query(
+      'UPDATE outil SET dureedeviepointeur = $1 WHERE id = $2 RETURNING *',
+      [dureedevie, id]
+    );
+
+    // Check if the outil was updated
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        message: 'Outil not found or could not be updated',
+      });
+    }
+
+    return res.status(200).json({
+      message: 'Durée de vie reset successfully',
+      outil: result.rows[0], // Return the updated outil with the new dureedeviepointeur value
+    });
+  } catch (error) {
+    console.error('Failed to reset durée de vie:', error);
+    return res.status(500).json({
+      message: 'Failed to reset durée de vie',
+      error: error.message, // Optional: Include the error message for debugging
+    });
   }
 });
 
