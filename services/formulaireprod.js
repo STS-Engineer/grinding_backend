@@ -298,12 +298,14 @@ router.post('/machinee', authenticate, async (req, res) => {
     const machineId = result.rows[0].id;
 
     console.log('Machine inserted, generated ID:', machineId); // Debugging line
+  
 
      if (tools.length > 0) {
       // Insert each tool into the 'outil' table
       for (const tool of tools) {
         console.log('Inserting tool:', tool); // Debugging line
         const dureedeviepointeur = tool.dureedeviepointeur ?? tool.dureedevie;
+
         await pool.query(
           'INSERT INTO outil (phase, nom_outil, dureedevie, machine_id, referenceproduit, dureedeviepointeur) VALUES ($1, $2, $3, $4, $5, $6)',
           [tool.phase, tool.nom_outil, tool.dureedevie, machineId, tool.referenceproduit, dureedeviepointeur] // Use machineId instead of id
@@ -328,6 +330,7 @@ router.post('/machinee', authenticate, async (req, res) => {
     return res.status(500).json({ message: 'An error occurred while creating the machine and tools', error: error.message });
   }
 });
+
 
 router.get('/plannificationss', authenticate, async (req, res) => {
   const { phase, shift, date_creation, id_machine } = req.query;
