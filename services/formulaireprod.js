@@ -1325,6 +1325,62 @@ router.get('/getdefauts', async (req, res) => {
   }
 });
 
+router.post('/ajouterdefautinspection', authenticate, async (req, res) => {
+  const { inspectiondefaut } = req.body;
+
+  try {
+ 
+
+    // Execute the query
+    const result = await pool.query(
+      'INSERT INTO inspectiondefaut (inspectiondefaut) VALUES ($1) RETURNING *',
+      [inspectiondefaut]
+    );
+
+    // Debugging: Log the result to ensure rows exist
+    console.log('Query result:', result);
+
+    // Check if rows are returned
+    if (!result.rows || result.rows.length === 0) {
+      return res.status(500).json({ message: 'defaut was not inserted into the database' });
+    }
+
+    // Extract the new problem
+    const newDefaut = result.rows[0];
+
+    // Return a success response
+    return res.status(201).json({
+      message: 'defaut inspection à été ajouté avec succés',
+      probleme: newDefaut,
+    });
+  } catch (error) {
+    console.error('Error creating problem:', error.message);
+
+    // Return an error response
+    return res.status(500).json({
+      message: 'An error occurred while creating the problem',
+      error: error.message,
+    });
+  }
+});
+router.get('/getdefautsinspection', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM inspectiondefaut');
+
+    // Assuming result.rows contains the data
+    return res.status(200).json({
+      message: 'Defaut inspection retrieved successfully',
+      operateurs: result.rows, // Sending only the data rows
+    });
+  } catch (error) {
+    console.error('Failed to retrieve Probleme:', error);
+    return res.status(500).json({
+      message: 'Failed to retrieve Probleme',
+      error: error.message, // Optional: Include the error message for debugging
+    });
+  }
+});
+
 router.delete('/regleur/:id', authenticate, async (req, res) => {
   const regleurId = req.params.id; // Get machine ID from URL parameter
   const userId = req.user.userId; // Extract user ID from JWT
