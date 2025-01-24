@@ -1520,6 +1520,44 @@ router.get('/getoutil', async (req, res) => {
   }
 });
 
+router.post('/checkoutil', async (req, res) => {
+  const { nom_outil } = req.body;
+
+  if (!nom_outil) {
+    return res.status(400).json({
+      message: 'Le champ nom_outil est obligatoire.',
+    });
+  }
+
+  try {
+    // Query to check if the tool exists
+    const result = await pool.query(
+      'SELECT COUNT(*) FROM outil WHERE nom_outil = $1',
+      [nom_outil]
+    );
+
+    const exists = parseInt(result.rows[0].count, 10) > 0;
+
+    if (exists) {
+      return res.status(200).json({
+        exists: true,
+        message: 'Outil already exists.',
+      });
+    }
+
+    return res.status(200).json({
+      exists: false,
+      message: 'Outil does not exist.',
+    });
+  } catch (error) {
+    console.error('Failed to check Outil existence:', error);
+    return res.status(500).json({
+      message: 'Failed to check Outil existence',
+      error: error.message,
+    });
+  }
+});
+
 router.get('/tools', authenticate, async (req, res) => {
   try {
     const tools = await pool.query('SELECT id, nom_outil, dureedevie FROM outil');
