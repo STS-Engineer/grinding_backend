@@ -1524,7 +1524,7 @@ router.post('/checkoutil', async (req, res) => {
   const { nom_outil } = req.body;
 
   if (!nom_outil) {
-    return res.status(400).json({
+    return res.status(400).json({   
       message: 'Le champ nom_outil est obligatoire.',
     });
   }
