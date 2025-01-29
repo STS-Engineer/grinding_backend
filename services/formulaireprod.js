@@ -1567,6 +1567,48 @@ router.get('/tools', authenticate, async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch tools' });
   }
 });
+
+
+// Update a tool
+router.put('/tools/:id', authenticate, async (req, res) => {
+  const { id } = req.params;
+  const { nom_outil, phase, dureedevie } = req.body;
+
+  try {
+    const updatedTool = await pool.query(
+      'UPDATE outil SET nom_outil = $1, phase = $2, dureedevie = $3 WHERE id = $4 RETURNING *',
+      [nom_outil, phase, dureedevie, id]
+    );
+
+    if (updatedTool.rowCount === 0) {
+      return res.status(404).json({ message: 'Tool not found' });
+    }
+
+    res.status(200).json({ message: 'Tool updated successfully', tool: updatedTool.rows[0] });
+  } catch (error) {
+    console.error('Error updating tool:', error);
+    res.status(500).json({ message: 'Failed to update tool' });
+  }
+});
+
+// Delete a tool
+router.delete('/tools/:id', authenticate, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const deletedTool = await pool.query('DELETE FROM outil WHERE id = $1 RETURNING *', [id]);
+
+    if (deletedTool.rowCount === 0) {
+      return res.status(404).json({ message: 'Tool not found' });
+    }
+
+    res.status(200).json({ message: 'Tool deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting tool:', error);
+    res.status(500).json({ message: 'Failed to delete tool' });
+  }
+});
+
 router.put('/resetdureedevie/:id', async (req, res) => {
   const { id } = req.params; // Extract the outil ID from the request parameters
 
