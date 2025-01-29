@@ -1251,6 +1251,70 @@ router.get('/getproblemespostedecontrole', async (req, res) => {
   }
 });
 
+
+
+
+// Update a problemecontrole
+router.put('/updateproblemepostedecontrole/:id', async (req, res) => {
+  const { id } = req.params; // The ID of the record to update
+  const { problemecontrole} = req.body; // Assuming these are the fields to update (adjust as per your schema)
+
+  try {
+    const result = await pool.query(
+      'UPDATE postecontrole SET problemecontrole = $1 WHERE id = $2 RETURNING *',
+      [problemecontrole, id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        message: 'Problemecontrole not found',
+      });
+    }
+
+    return res.status(200).json({
+      message: 'Problemecontrol updated successfully',
+      updatedProbleme: result.rows[0], // Send back the updated record
+    });
+  } catch (error) {
+    console.error('Error updating Problemecontrole:', error);
+    return res.status(500).json({
+      message: 'Failed to update Problemecontrole',
+      error: error.message, // Optional: Include error message for debugging
+    });
+  }
+});
+
+
+
+// Delete a problemecontrole
+router.delete('/deleteproblemepostedecontrole/:id', async (req, res) => {
+  const { id } = req.params; // The ID of the record to delete
+
+  try {
+    const result = await pool.query(
+      'DELETE FROM postecontrole WHERE id = $1 RETURNING *',
+      [id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        message: 'Problemecontrol not found',
+      });
+    }
+
+    return res.status(200).json({
+      message: 'Problemecontrol deleted successfully',
+      deletedProbleme: result.rows[0], // Send back the deleted record
+    });
+  } catch (error) {
+    console.error('Error deleting Problemecontrole:', error);
+    return res.status(500).json({
+      message: 'Failed to delete Problemecontrole',
+      error: error.message, // Optional: Include error message for debugging
+    });
+  }
+});
+
 router.get('/getproblemes', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM problemetechnique');
