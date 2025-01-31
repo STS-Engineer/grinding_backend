@@ -333,12 +333,15 @@ router.post('/machinee', authenticate, async (req, res) => {
 
 
 router.get('/plannificationss', authenticate, async (req, res) => {
-  const { phase, shift, date_creation, id_machine } = req.query;
+  const { phase, shift, id_machine, referenceproduit } = req.query;
+  
+  // Get today's date in the same format as the database date (yyyy-mm-dd)
+  const today = new Date().toISOString().split('T')[0];
 
   try {
     const result = await pool.query(
-      'SELECT * FROM plannification WHERE phase = $1 AND shift = $2 AND date_creation = $3 AND id_machine = $4 ',
-      [phase, shift, date_creation, id_machine]
+      'SELECT * FROM plannification WHERE phase = $1 AND shift = $2 AND $3 BETWEEN start_date AND end_date AND id_machine = $4 AND referenceproduit = $5',
+      [phase, shift, today, id_machine, referenceproduit]
     );
     res.status(200).json(result.rows);
   } catch (err) {
