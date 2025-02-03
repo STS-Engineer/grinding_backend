@@ -350,9 +350,106 @@ router.get('/plannificationss', authenticate, async (req, res) => {
   }
 });
 
+router.get('/listplannification', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM plannification');
 
+    // Assuming result.rows contains the data
+    return res.status(200).json({
+      message: 'Plannification retrieved successfully',
+      plannifications: result.rows, // Sending only the data rows
+    });
+  } catch (error) {
+    console.error('Failed to retrieve Probleme:', error);
+    return res.status(500).json({
+      message: 'Failed to retrieve Probleme',
+      error: error.message, // Optional: Include the error message for debugging
+    });
+  }
+});
 
+router.put('/updateplannification/:id', authenticate, async (req, res) => {
+  const {
+    phase,
+    id_machine,
+    operateurs,
+    totalplanifie,
+    shift,
+    nombre_heure_shift1,
+    nombre_heure_shift2,
+    date_creation,
+    start_date, // Add this field if you want to pass the date from the request
+    end_date, 
+    referenceproduit,
+    nombredemanqueoperateur
+  } = req.body;
 
+  const { id } = req.params; // Get the plannification id from the route parameter
+
+  try {
+    // Use CURRENT_TIMESTAMP if no date_creation is passed in the request
+    const currentDate = date_creation 
+      ? new Date(date_creation).toISOString().split("T")[0] 
+      : new Date().toISOString().split("T")[0]; // Default to current date if not provided
+
+    // Update the plannification with the provided data
+    const result = await pool.query(
+      'UPDATE plannification SET phase = $1, id_machine = $2, operateurs = $3, totalplanifie = $4, shift = $5, nombre_heure_shift1 = $6, nombre_heure_shift2 = $7, date_creation = $8, start_date = $9, end_date = $10, referenceproduit = $11, nombredemanqueoperateur = $12 WHERE id = $13 RETURNING *',
+      [
+        phase,
+        id_machine,
+        operateurs,
+        totalplanifie,
+        shift,
+        nombre_heure_shift1,
+        nombre_heure_shift2,
+        currentDate, // Update with the current date if necessary
+        start_date,
+        end_date,
+        referenceproduit,
+        nombredemanqueoperateur,
+        id // Use the ID to find the plannification to update
+      ]
+    );
+
+    if (result.rows.length > 0) {
+      res.status(200).json({ message: 'Plannification updated successfully', plannification: result.rows[0] });
+    } else {
+      res.status(404).json({ message: 'Plannification not found' });
+    }
+  } catch (err) {
+    console.error('Error updating plannification:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.delete('/plannifications/:id', authenticate, async (req, res) => {
+  const { id } = req.params;  // Get the 'id' from the URL parameters
+
+  try {
+    // First, check if the plannification exists by fetching it
+    const result = await pool.query(
+      'SELECT * FROM plannification WHERE id = $1',  // Use the 'id' to fetch the plannification
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Plannification not found' });
+    }
+
+    // If the plannification exists, delete it
+    await pool.query(
+      'DELETE FROM plannification WHERE id = $1',  // SQL query to delete the plannification
+      [id]
+    );
+
+    res.status(200).json({ message: 'Plannification deleted successfully' });
+
+  } catch (err) {
+    console.error('Error deleting plannification:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
 
 
 router.put('/machinee/:id', authenticate, async (req, res) => {
