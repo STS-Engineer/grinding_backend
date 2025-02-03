@@ -806,7 +806,8 @@ router.post('/plannification', authenticate, async (req, res) => {
     start_date, // Add this field if you want to pass the date from the request
     end_date, 
     referenceproduit,
-    nombredemanqueoperateur
+    nombredemanqueoperateur,
+    nombreoperateurprod
   } = req.body;
 
   try {
@@ -817,7 +818,7 @@ router.post('/plannification', authenticate, async (req, res) => {
 
     // Insert the new plannification with all the fields, including date_creation
     const result = await pool.query(
-      'INSERT INTO plannification (phase, id_machine, operateurs, totalplanifie, shift, nombre_heure_shift1, nombre_heure_shift2, date_creation, start_date, end_date, referenceproduit, nombredemanqueoperateur ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *',
+      'INSERT INTO plannification (phase, id_machine, operateurs, totalplanifie, shift, nombre_heure_shift1, nombre_heure_shift2, date_creation, start_date, end_date, referenceproduit, nombredemanqueoperateur, nombreoperateurprod ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *',
       [
         phase,
         id_machine,
@@ -830,7 +831,8 @@ router.post('/plannification', authenticate, async (req, res) => {
         start_date,
         end_date,
         referenceproduit,
-        nombredemanqueoperateur
+        nombredemanqueoperateur,
+        nombreoperateurprod
       ]
     );
 
