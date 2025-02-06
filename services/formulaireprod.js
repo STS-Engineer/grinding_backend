@@ -1780,13 +1780,18 @@ router.put('/resetdureedevie/:id', async (req, res) => {
   try {
     // Fetch the dureedevie from the specified outil
     const outildureedevie = await pool.query('SELECT dureedevie FROM outil WHERE id = $1', [id]);
+    const outilnom = await pool.query('SELECT nom_outil FROM outil WHERE id = $1', [id]);
+    const outildureedeviepointeur = await pool.query('SELECT dureedeviepointeur FROM outil WHERE id = $1', [id]);
 
     // Check if the outil exists and retrieve the dureedevie
     if (outildureedevie.rows.length === 0) {
       return res.status(404).json({ message: `No outil found with id: ${id}` });
     }
 
-    const dureedevie = outildureedevie.rows[0].dureedevie; // Access the 'dureedevie' field
+    const dureedevie = outildureedevie.rows[0].dureedevie;
+    const dureedeviepointeur = outildureedeviepointeur.rows[0].dureedeviepointeur;  // Access the 'dureedevie' field
+    const nom_outil = outilnom.rows[0].nom_outil; // Access the 'dureedevie' field
+
     console.log('Dureedevie:', dureedevie); // Optional debugging line
 
     // Update the dureedeviepointeur column with the value of dureedevie
@@ -1802,6 +1807,20 @@ router.put('/resetdureedevie/:id', async (req, res) => {
       });
     }
 
+    const historiqueMessage = `The Tool ${nom_outil} that has tool life ${dureedeviepointeur} has been changed`;
+
+    // Manually format the current date and time
+    const now = new Date();
+    const formattedDate = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+    
+    // Insert into the database
+    await pool.query(
+      'INSERT INTO historique (outil_id, text, created_at) VALUES ($1, $2, $3)',
+      [id, historiqueMessage, formattedDate]
+    );
+    
+       
+
     return res.status(200).json({
       message: 'Durée de vie reset successfully',
       outil: result.rows[0], // Return the updated outil with the new dureedeviepointeur value
@@ -1810,6 +1829,24 @@ router.put('/resetdureedevie/:id', async (req, res) => {
     console.error('Failed to reset durée de vie:', error);
     return res.status(500).json({
       message: 'Failed to reset durée de vie',
+      error: error.message, // Optional: Include the error message for debugging
+    });
+  }
+});
+
+router.get('/historique', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM historique');
+
+    // Assuming result.rows contains the data
+    return res.status(200).json({
+      message: 'Historical retrieved successfully',
+      historiques: result.rows, // Sending only the data rows
+    });
+  } catch (error) {
+    console.error('Failed to retrieve Probleme:', error);
+    return res.status(500).json({
+      message: 'Failed to retrieve Probleme',
       error: error.message, // Optional: Include the error message for debugging
     });
   }
