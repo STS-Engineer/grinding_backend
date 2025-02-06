@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
 
 JWT_SECRET='12345'
 router.post('/register', async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, role } = req.body;
 
   try {
     // Check if the user already exists
@@ -21,8 +21,8 @@ router.post('/register', async (req, res) => {
 
     // Insert user into the database
     const result = await pool.query(
-      'INSERT INTO utilisateur (email, password) VALUES ($1, $2) RETURNING *',
-      [email, hashedPassword]
+      'INSERT INTO utilisateur (email, password, role) VALUES ($1, $2, $3) RETURNING *',
+      [email, hashedPassword, role]
     );
 
     res.status(201).json({ message: 'User created successfully', userId: result.rows[0].id });
@@ -31,7 +31,6 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ message: 'Registration failed' });
   }
 });
-
 
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
