@@ -1725,7 +1725,7 @@ router.post('/checkoutil', async (req, res) => {
 
 router.get('/tools', authenticate, async (req, res) => {
   try {
-    const tools = await pool.query('SELECT id, nom_outil,phase,dureedevie FROM outil');
+    const tools = await pool.query('SELECT id, nom_outil,phase,dureedeviepointeur FROM outil');
     res.status(200).json(tools.rows);
   } catch (error) {
     console.error('Error fetching tools:', error);
@@ -1733,16 +1733,15 @@ router.get('/tools', authenticate, async (req, res) => {
   }
 });
 
-
 // Update a tool
 router.put('/tools/:id', authenticate, async (req, res) => {
   const { id } = req.params;
-  const { nom_outil, phase, dureedevie } = req.body;
+  const { nom_outil, phase, dureedeviepointeur } = req.body;
 
   try {
     const updatedTool = await pool.query(
-      'UPDATE outil SET nom_outil = $1, phase = $2, dureedevie = $3 WHERE id = $4 RETURNING *',
-      [nom_outil, phase, dureedevie, id]
+      'UPDATE outil SET nom_outil = $1, phase = $2, dureedeviepointeur = $3 WHERE id = $4 RETURNING *',
+      [nom_outil, phase, dureedeviepointeur, id]
     );
 
     if (updatedTool.rowCount === 0) {
