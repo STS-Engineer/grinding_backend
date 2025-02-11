@@ -1725,7 +1725,7 @@ router.post('/checkoutil', async (req, res) => {
 
 router.get('/tools', authenticate, async (req, res) => {
   try {
-    const tools = await pool.query('SELECT id, nom_outil,phase,dureedeviepointeur FROM outil');
+    const tools = await pool.query('SELECT id, nom_outil,phase,dureedeviepointeur,dureedevie, referenceproduit FROM outil');
     res.status(200).json(tools.rows);
   } catch (error) {
     console.error('Error fetching tools:', error);
