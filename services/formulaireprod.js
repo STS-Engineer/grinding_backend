@@ -1965,8 +1965,8 @@ router.get('/get/references/:nom_machine', async (req, res) => {
 });
 
 // Fetch tools for a selected reference
-router.get('/get/tools/:reference', async (req, res) => {
-  const { reference } = req.params;
+router.get('/get/tools/:reference/:nom_machine', async (req, res) => {
+  const { reference, nom_machine } = req.params;
 
   try {
     // Fetch all tools and dureedeviepointeur across all references
@@ -1984,8 +1984,8 @@ router.get('/get/tools/:reference', async (req, res) => {
 
     // Fetch tools for the selected reference
     const result = await pool.query(
-      'SELECT DISTINCT outil FROM declaration WHERE reference = $1',
-      [reference]
+      'SELECT DISTINCT outil FROM declaration WHERE reference = $1 AND nom_machine = $2',
+      [reference, nom_machine ]
     );
 
     // Assign the global dureedeviepointeur for each outil
@@ -2003,7 +2003,6 @@ router.get('/get/tools/:reference', async (req, res) => {
     return res.status(500).json({ message: 'Error fetching tools' });
   }
 });
-
 
 
 
