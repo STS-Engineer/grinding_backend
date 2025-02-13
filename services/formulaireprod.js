@@ -2006,47 +2006,64 @@ router.get('/get/tools/:reference/:nom_machine', async (req, res) => {
 
 
 
-// Update reference and update tools accordingly
 router.put('/update/reference', async (req, res) => {
-  const { nom_machine, new_reference } = req.body;
+  const { nom_machine, new_reference, old_reference } = req.body;
 
   try {
-    // Start a transaction
-    await pool.query('BEGIN');
+    await pool.query('BEGIN'); // Start transaction
 
-    // Update declaration rows for the given machine that do not already have the new reference.
+    // 1️⃣ Remove tools from the old reference that are not in the new reference
     await pool.query(
-      `UPDATE declaration 
-       SET reference = $1 
-       WHERE nom_machine = $2 
-         AND reference != $1`,
-      [new_reference, nom_machine]
+      `DELETE FROM declaration
+       WHERE nom_machine = $1
+         AND reference = $2
+         AND outil NOT IN (
+           SELECT outil FROM declaration WHERE nom_machine = $1 AND reference = $3
+         )`,
+      [nom_machine, old_reference, new_reference]
     );
 
-    // Remove duplicate rows for the machine that now have the same new reference and tool.
-    // The query compares the "ctid" (an internal row identifier) and deletes rows with a higher ctid,
-    // leaving only one row per unique combination of (nom_machine, reference, outil).
+    // 2️⃣ Remove duplicate tools from the old reference (keep only the tool in the new reference)
     await pool.query(
       `DELETE FROM declaration a
        USING declaration b
        WHERE a.nom_machine = b.nom_machine
-         AND a.reference = b.reference
+         AND a.reference = $2
          AND a.outil = b.outil
          AND a.ctid > b.ctid
-         AND a.nom_machine = $1
-         AND a.reference = $2`,
-      [nom_machine, new_reference]
+         AND b.nom_machine = $1
+         AND b.reference = $3`,
+      [nom_machine, old_reference, new_reference]
     );
 
-    // Commit the transaction
-    await pool.query('COMMIT');
+    // 3️⃣ Transfer `dureedeviepointeur` from old reference to new reference for common tools
+    await pool.query(
+      `UPDATE declaration d
+       SET dureedeviepointeur = old.dureedeviepointeur
+       FROM declaration old
+       WHERE d.nom_machine = $1
+         AND d.reference = $2
+         AND d.outil = old.outil
+         AND old.nom_machine = $1
+         AND old.reference = $3`,
+      [nom_machine, new_reference, old_reference]
+    );
+
+    // 4️⃣ Remove the old reference entirely after all updates
+    await pool.query(
+      `DELETE FROM declaration
+       WHERE nom_machine = $1
+         AND reference = $2`,
+      [nom_machine, old_reference]
+    );
+
+    await pool.query('COMMIT'); // Commit transaction
 
     return res.json({
-      message: 'Reference updated successfully and duplicate rows removed.',
+      message: 'Reference updated successfully: tools aligned, duplicates removed, and old reference deleted.',
     });
   } catch (error) {
-    // Rollback the transaction in case of error
-    await pool.query('ROLLBACK');
+    await pool.query('ROLLBACK'); // Rollback on error
     console.error('Error updating reference:', error.message);
     return res.status(500).json({ message: 'Error updating reference', error: error.message });
   }
