@@ -92,6 +92,9 @@ router.post('/prod', async (req, res) => {
     const outilResult = await pool.query(
       `SELECT * FROM outil `
     );
+    const Outildeclaration = await pool.query(
+      `SELECT * FROM declaration `
+    );
   
 
     if (outilResult.rows.length === 0) {
@@ -116,8 +119,27 @@ const updatePromises = outilResult.rows.map(async (outil) => {
   );
 });
 
+
+const updatePromisess = Outildeclaration.rows.map(async (outil) => {
+  const currentDureeDeviePointeur = outil.dureedeviepointeur;
+  const updatedDureeDeviePointeurdeclaration = Math.max(0, currentDureeDeviePointeur - totalrealise);  // Assuming `totalrealise` is the same for all rows
+
+  console.log('Current DureeDeviePointeur:', currentDureeDeviePointeur);
+  console.log('Updated DureeDeviePointeur:', updatedDureeDeviePointeurdeclaration);
+
+  // Update each outil
+  return pool.query(
+    `UPDATE declaration 
+     SET dureedeviepointeur = $1 
+     WHERE id = $2 
+     RETURNING *`,
+    [updatedDureeDeviePointeurdeclaration, outil.id]
+  );
+});
+
 // Wait for all the update operations to finish
 const updatedOutils = await Promise.all(updatePromises);
+const updatedOutilsdeclaration = await Promise.all(updatePromisess);
 
 
 
@@ -125,7 +147,8 @@ const updatedOutils = await Promise.all(updatePromises);
     res.status(201).json({
       message: 'Production created successfully with the totalplanifie value',
       production,
-      updatedOutil: updatedOutils
+      updatedOutil: updatedOutils,
+      updatedOutildeclaration: updatedOutilsdeclaration
     });
 
   } catch (err) {
@@ -133,7 +156,6 @@ const updatedOutils = await Promise.all(updatePromises);
     res.status(500).json({ message: 'Internal server error', error: err.message });
   }
 });
-
 
 
 
@@ -1725,7 +1747,7 @@ router.post('/checkoutil', async (req, res) => {
 
 router.get('/tools', authenticate, async (req, res) => {
   try {
-    const tools = await pool.query('SELECT id, nom_outil,phase,dureedeviepointeur,dureedevie, referenceproduit FROM outil');
+    const tools = await pool.query('SELECT id, outil,dureedeviepointeur,dureedevie, reference FROM declaration');
     res.status(200).json(tools.rows);
   } catch (error) {
     console.error('Error fetching tools:', error);
@@ -1736,12 +1758,12 @@ router.get('/tools', authenticate, async (req, res) => {
 // Update a tool
 router.put('/tools/:id', authenticate, async (req, res) => {
   const { id } = req.params;
-  const { nom_outil, phase, dureedeviepointeur } = req.body;
+  const { outil,  dureedeviepointeur, reference } = req.body;
 
   try {
     const updatedTool = await pool.query(
-      'UPDATE outil SET nom_outil = $1, phase = $2, dureedeviepointeur = $3 WHERE id = $4 RETURNING *',
-      [nom_outil, phase, dureedeviepointeur, id]
+      'UPDATE declaration SET outil = $1, dureedeviepointeur = $2, reference = $3 WHERE id = $4 RETURNING *',
+      [outil , dureedeviepointeur,reference, id]
     );
 
     if (updatedTool.rowCount === 0) {
@@ -1760,7 +1782,7 @@ router.delete('/tools/:id', authenticate, async (req, res) => {
   const { id } = req.params;
 
   try {
-    const deletedTool = await pool.query('DELETE FROM outil WHERE id = $1 RETURNING *', [id]);
+    const deletedTool = await pool.query('DELETE FROM declaration WHERE id = $1 RETURNING *', [id]);
 
     if (deletedTool.rowCount === 0) {
       return res.status(404).json({ message: 'Tool not found' });
@@ -1778,9 +1800,9 @@ router.put('/resetdureedevie/:id', async (req, res) => {
 
   try {
     // Fetch the dureedevie from the specified outil
-    const outildureedevie = await pool.query('SELECT dureedevie FROM outil WHERE id = $1', [id]);
-    const outilnom = await pool.query('SELECT nom_outil FROM outil WHERE id = $1', [id]);
-    const outildureedeviepointeur = await pool.query('SELECT dureedeviepointeur FROM outil WHERE id = $1', [id]);
+    const outildureedevie = await pool.query('SELECT dureedevie FROM declaration WHERE id = $1', [id]);
+    const outilnom = await pool.query('SELECT outil FROM declaration WHERE id = $1', [id]);
+    const outildureedeviepointeur = await pool.query('SELECT dureedeviepointeur FROM declaration WHERE id = $1', [id]);
 
     // Check if the outil exists and retrieve the dureedevie
     if (outildureedevie.rows.length === 0) {
@@ -1789,13 +1811,13 @@ router.put('/resetdureedevie/:id', async (req, res) => {
 
     const dureedevie = outildureedevie.rows[0].dureedevie;
     const dureedeviepointeur = outildureedeviepointeur.rows[0].dureedeviepointeur;  // Access the 'dureedevie' field
-    const nom_outil = outilnom.rows[0].nom_outil; // Access the 'dureedevie' field
+    const nom_outil = outilnom.rows[0].outil; // Access the 'dureedevie' field
 
     console.log('Dureedevie:', dureedevie); // Optional debugging line
 
     // Update the dureedeviepointeur column with the value of dureedevie
     const result = await pool.query(
-      'UPDATE outil SET dureedeviepointeur = $1 WHERE id = $2 RETURNING *',
+      'UPDATE declaration SET dureedeviepointeur = $1 WHERE id = $2 RETURNING *',
       [dureedevie, id]
     );
 
@@ -1814,8 +1836,8 @@ router.put('/resetdureedevie/:id', async (req, res) => {
     
     // Insert into the database
     await pool.query(
-      'INSERT INTO historique (outil_id, text, created_at) VALUES ($1, $2, $3)',
-      [id, historiqueMessage, formattedDate]
+      'INSERT INTO historique ( text, created_at) VALUES ($1, $2)',
+      [ historiqueMessage, formattedDate]
     );
     
        
@@ -1848,6 +1870,186 @@ router.get('/historique', async (req, res) => {
       message: 'Failed to retrieve Probleme',
       error: error.message, // Optional: Include the error message for debugging
     });
+  }
+});
+router.post('/ajouterproduit', authenticate, async (req, res) => {
+  const { reference, outil, nom_machine, dureedevie } = req.body;
+
+  try {
+    console.log('Received Data:', { reference, outil, nom_machine, dureedevie });
+
+    // Insert into the 'produit' table (including dureedevie if needed)
+    const result = await pool.query(
+      'INSERT INTO produit (reference, outil, nom_machine) VALUES ($1, $2, $3) RETURNING *',
+      [reference, outil, nom_machine]
+    );
+
+    console.log('Produit Insertion Result:', result.rows);
+
+    if (!result.rows || result.rows.length === 0) {
+      console.error('No rows returned from produit insert');
+      return res.status(500).json({ message: 'Produit was not inserted into the database' });
+    }
+
+    // Extract the new product
+    const newProduit = result.rows[0];
+
+    // Check if an existing dureedevie exists for the given outil
+    const existingDuree = await pool.query(
+      'SELECT dureedevie FROM declaration WHERE outil = $1 AND dureedevie IS NOT NULL LIMIT 1',
+      [outil]
+    );
+
+    let finalDureedevie = dureedevie; // Default to provided dureedevie
+
+    if (existingDuree.rows.length > 0) {
+      // If there's already a dureedevie for this outil, use it
+      finalDureedevie = existingDuree.rows[0].dureedevie;
+    }
+
+    // Insert into the 'declaration' table with the correct dureedevie
+    const declarationResult = await pool.query(
+      'INSERT INTO declaration (nom_machine, reference, outil, dureedeviepointeur, dureedevie) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [nom_machine, reference, outil, finalDureedevie, finalDureedevie]
+    );
+
+    console.log('Declaration Insertion Result:', declarationResult.rows);
+
+    if (!declarationResult.rows || declarationResult.rows.length === 0) {
+      console.error('No rows returned from declaration insert');
+      return res.status(500).json({ message: 'Declaration was not inserted into the database' });
+    }
+
+    // Return a success response
+    return res.status(201).json({
+      message: 'Produit created successfully',
+      produit: newProduit,
+      dureedevie: dureedevie, // Return the assigned dureedevie
+    });
+  } catch (error) {
+    console.error('Error creating product:', error);
+
+    // Return an error response
+    return res.status(500).json({
+      message: 'An error occurred while creating the product',
+      error: error.message,
+    });
+  }
+});
+
+
+// Fetch all machines for the dropdown
+router.get('/nommachine', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT DISTINCT nom_machine FROM declaration');
+    return res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching machines:', error.message);
+    return res.status(500).json({ message: 'Error fetching machines' });
+  }
+});
+
+// Fetch references for a selected machine
+router.get('/get/references/:nom_machine', async (req, res) => {
+  const { nom_machine } = req.params;
+  try {
+    const result = await pool.query(
+      'SELECT DISTINCT reference FROM declaration WHERE nom_machine = $1',
+      [nom_machine]
+    );
+    return res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching references:', error.message);
+    return res.status(500).json({ message: 'Error fetching references' });
+  }
+});
+
+// Fetch tools for a selected reference
+router.get('/get/tools/:reference', async (req, res) => {
+  const { reference } = req.params;
+
+  try {
+    // Fetch all tools and dureedeviepointeur across all references
+    const allTools = await pool.query(
+      'SELECT DISTINCT outil, dureedeviepointeur FROM declaration WHERE dureedeviepointeur IS NOT NULL'
+    );
+
+    // Create a map where the key is 'outil' and the value is 'dureedeviepointeur'
+    const toolDureeMap = new Map();
+    allTools.rows.forEach(row => {
+      if (row.outil && row.dureedeviepointeur !== null) {
+        toolDureeMap.set(row.outil, row.dureedeviepointeur);
+      }
+    });
+
+    // Fetch tools for the selected reference
+    const result = await pool.query(
+      'SELECT DISTINCT outil FROM declaration WHERE reference = $1',
+      [reference]
+    );
+
+    // Assign the global dureedeviepointeur for each outil
+    const tools = result.rows.map(row => {
+      const dureedeviepointeur = toolDureeMap.get(row.outil) || null;
+      return {
+        outil: row.outil,
+        dureedeviepointeur // Use dureedeviepointeur instead of dureedevie
+      };
+    });
+
+    return res.json(tools);
+  } catch (error) {
+    console.error('Error fetching tools:', error.message);
+    return res.status(500).json({ message: 'Error fetching tools' });
+  }
+});
+
+
+
+
+// Update reference and update tools accordingly
+router.put('/update/reference', async (req, res) => {
+  const { nom_machine, new_reference } = req.body;
+
+  try {
+    // Start a transaction
+    await pool.query('BEGIN');
+
+    // Update declaration rows for the given machine that do not already have the new reference.
+    await pool.query(
+      `UPDATE declaration 
+       SET reference = $1 
+       WHERE nom_machine = $2 
+         AND reference != $1`,
+      [new_reference, nom_machine]
+    );
+
+    // Remove duplicate rows for the machine that now have the same new reference and tool.
+    // The query compares the "ctid" (an internal row identifier) and deletes rows with a higher ctid,
+    // leaving only one row per unique combination of (nom_machine, reference, outil).
+    await pool.query(
+      `DELETE FROM declaration a
+       USING declaration b
+       WHERE a.nom_machine = b.nom_machine
+         AND a.reference = b.reference
+         AND a.outil = b.outil
+         AND a.ctid > b.ctid
+         AND a.nom_machine = $1
+         AND a.reference = $2`,
+      [nom_machine, new_reference]
+    );
+
+    // Commit the transaction
+    await pool.query('COMMIT');
+
+    return res.json({
+      message: 'Reference updated successfully and duplicate rows removed.',
+    });
+  } catch (error) {
+    // Rollback the transaction in case of error
+    await pool.query('ROLLBACK');
+    console.error('Error updating reference:', error.message);
+    return res.status(500).json({ message: 'Error updating reference', error: error.message });
   }
 });
 
