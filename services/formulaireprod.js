@@ -1712,19 +1712,18 @@ router.get('/getoutil', async (req, res) => {
 });
 
 router.post('/checkoutil', async (req, res) => {
-  const { nom_outil } = req.body;
+  const { nom_outil, phase } = req.body;
 
-  if (!nom_outil) {
-    return res.status(400).json({   
-      message: 'Le champ nom_outil est obligatoire.',
+  if (!nom_outil || !phase) {
+    return res.status(400).json({
+      message: 'Both nom_outil and phase are required.',
     });
   }
 
   try {
-    // Query to check if the tool exists
     const result = await pool.query(
-      'SELECT COUNT(*) FROM outil WHERE nom_outil = $1',
-      [nom_outil]
+      'SELECT COUNT(*) FROM outil WHERE nom_outil = $1 AND phase = $2',
+      [nom_outil, phase]
     );
 
     const exists = parseInt(result.rows[0].count, 10) > 0;
@@ -1732,7 +1731,7 @@ router.post('/checkoutil', async (req, res) => {
     if (exists) {
       return res.status(200).json({
         exists: true,
-        message: 'Outil already exists.',
+        message: 'Outil or phase already exists.',
       });
     }
 
