@@ -2073,6 +2073,7 @@ router.put('/update/reference', async (req, res) => {
   }
 });
 
+
 router.get('/toolss', authenticate, async (req, res) => {
   try {
     const tools = await pool.query('SELECT nom_outil, phase, dureedevie FROM outil');
