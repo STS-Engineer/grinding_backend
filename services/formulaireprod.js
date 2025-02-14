@@ -295,12 +295,7 @@ router.post('/machinee', authenticate, async (req, res) => {
   const userId = req.user.userId; // Extract user ID from JWT
 
   try {
-    // Log input values for debugging
-    console.log('Received data:', {
-      nom, referenceproduit, date, userId, cadence_horaire, 
-      nombre_operateur_chargement, cadence_horaire_cf, cadence_horaire_csl, 
-      nombre_operateur_cf, nombre_operateur_csl, tools
-    });
+    console.log('Received data:', { nom, referenceproduit, date, userId, cadence_horaire, nombre_operateur_chargement, cadence_horaire_cf, cadence_horaire_csl, nombre_operateur_cf, nombre_operateur_csl, tools });
 
     // Start the transaction
     await pool.query('BEGIN');
@@ -317,19 +312,28 @@ router.post('/machinee', authenticate, async (req, res) => {
 
     // Get the generated machine id
     const machineId = result.rows[0].id;
+    console.log('Machine inserted, generated ID:', machineId);
 
-    console.log('Machine inserted, generated ID:', machineId); // Debugging line
-  
-
-     if (tools.length > 0) {
-      // Insert each tool into the 'outil' table
+    if (tools.length > 0) {
       for (const tool of tools) {
-        console.log('Inserting tool:', tool); // Debugging line
+        if (!tool.nom_outil || tool.nom_outil.trim() === '') {
+          console.log(`Skipping empty tool:`, tool);
+          continue; // Skip empty tools
+        }
+
+        console.log('Inserting tool:', tool);
         const dureedeviepointeur = tool.dureedeviepointeur ?? tool.dureedevie;
 
+        // Insert tool into outil table
         await pool.query(
           'INSERT INTO outil (phase, nom_outil, dureedevie, machine_id, referenceproduit, dureedeviepointeur) VALUES ($1, $2, $3, $4, $5, $6)',
-          [tool.phase, tool.nom_outil, tool.dureedevie, machineId, tool.referenceproduit, dureedeviepointeur] // Use machineId instead of id
+          [tool.phase, tool.nom_outil, tool.dureedevie, machineId, tool.referenceproduit, dureedeviepointeur]
+        );
+
+        // Insert non-empty tools into declaration table
+        await pool.query(
+          'INSERT INTO declaration (nom_machine, reference, outil, dureedeviepointeur, dureedevie, phase) VALUES ($1, $2, $3, $4, $5, $6)',
+          [nom, referenceproduit, tool.nom_outil, tool.dureedevie, tool.dureedevie, tool.phase]
         );
       }
     } else {
@@ -2069,7 +2073,15 @@ router.put('/update/reference', async (req, res) => {
   }
 });
 
-
+router.get('/toolss', authenticate, async (req, res) => {
+  try {
+    const tools = await pool.query('SELECT nom_outil, phase, dureedevie FROM outil');
+    res.status(200).json(tools.rows);
+  } catch (error) {
+    console.error('Error fetching tools:', error);
+    res.status(500).json({ message: 'Failed to fetch tools' });
+  }
+});
 
 
 
