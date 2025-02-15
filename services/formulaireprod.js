@@ -2082,6 +2082,74 @@ router.get('/toolss', authenticate, async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch tools' });
   }
 });
+router.put('/updateDeclaration', async (req, res) => {
+  const { nom_machine, old_reference, new_reference, tools } = req.body;
+
+  try {
+    // Begin transaction
+    await pool.query('BEGIN');
+    console.log("🔍 Transaction started");
+
+    // 1️⃣ Fetch the latest dureedeviepointeur for each tool from the old reference
+    const toolData = await pool.query(
+      `SELECT outil, MAX(dureedeviepointeur) AS dureedeviepointeur, MAX(dureedeviepointeur) AS dureedevie
+       FROM declaration
+       WHERE nom_machine = $1
+       AND reference = $2
+       AND outil = ANY($3)
+       GROUP BY outil`,
+      [nom_machine, old_reference, tools]
+    );
+
+    const oldToolDataMap = new Map(
+      toolData.rows.map(({ outil, dureedeviepointeur }) => [outil, dureedeviepointeur])
+    );
+    const oldToolDataMapp = new Map(
+      toolData.rows.map(({ outil, dureedevie }) => [outil, dureedevie])
+    );
+    // 2️⃣ Remove tools from the old reference that are NOT in the new reference
+    await pool.query(
+      `DELETE FROM declaration 
+       WHERE nom_machine = $1 
+       AND reference = $2 
+       AND outil NOT IN ($3)`,
+      [nom_machine, old_reference, tools]
+    );
+
+    console.log("🔴 Removed tools from the old reference that are not in the new reference.");
+
+    // 3️⃣ Insert new reference with tools, keeping dureedeviepointeur if already exists in the old reference
+    for (const tool of tools) {
+      const dureedeviepointeur = oldToolDataMap.get(tool) || null; // Keep old value if exists, otherwise null
+      const dureedevie = oldToolDataMapp.get(tool) || null;
+
+      // Insert new reference for the tool or update if it already exists
+      await pool.query(
+        `INSERT INTO declaration (nom_machine, reference, outil, dureedeviepointeur, dureedevie)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (nom_machine, reference, outil) 
+         DO UPDATE SET 
+           dureedeviepointeur = EXCLUDED.dureedeviepointeur,
+           dureedevie = EXCLUDED.dureedevie`,
+        [nom_machine, new_reference, tool, dureedeviepointeur, dureedevie ]
+      );
+
+      console.log(`✅ Inserted tool: ${tool} with dureedeviepointeur: ${dureedeviepointeur}`);
+    }
+
+    // Commit transaction
+    await pool.query('COMMIT');
+    console.log("✅ Transaction committed successfully.");
+
+    return res.json({ message: 'Declaration updated successfully' });
+
+  } catch (error) {
+    // Rollback in case of error
+    await pool.query('ROLLBACK');
+    console.error('❌ Error updating declaration:', error.message);
+    return res.status(500).json({ message: 'Error updating declaration', error: error.message });
+  }
+});
 
 
 
