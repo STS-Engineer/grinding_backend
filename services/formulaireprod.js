@@ -2151,6 +2151,41 @@ router.put('/updateDeclaration', async (req, res) => {
   }
 });
 
+router.post('/ajouterdeclaration', authenticate, async (req, res) => {
+  const { nom_machine, reference, outil, dureedevie, phase } = req.body;
 
+  try {
+    // Execute the query with correct placeholders
+    const result = await pool.query(
+      'INSERT INTO declaration (nom_machine, reference, outil, dureedevie, phase) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [nom_machine, reference, outil, dureedevie, phase]
+    );
+
+    // Debugging: Log the query result
+    console.log('Query result:', result.rows);
+
+    // Ensure rows exist before returning success
+    if (!result.rows.length) {
+      return res.status(500).json({ success: false, message: 'Outil was not inserted into the database' });
+    }
+
+    // Return success response with the inserted row
+    return res.status(201).json({
+      success: true,
+      message: 'Outil created successfully',
+      data: result.rows[0], // Return inserted record
+    });
+
+  } catch (error) {
+    console.error('Error creating outil:', error.message);
+    
+    // Return a meaningful error response
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred while inserting the outil',
+      error: error.message,
+    });
+  }
+});
 
 module.exports = router;
