@@ -2092,7 +2092,7 @@ router.put('/updateDeclaration', async (req, res) => {
 
     // 1️⃣ Fetch the latest dureedeviepointeur for each tool from the old reference
     const toolData = await pool.query(
-      `SELECT outil, MAX(dureedeviepointeur) AS dureedeviepointeur, MAX(dureedeviepointeur) AS dureedevie
+      `SELECT outil, MAX(dureedeviepointeur) AS dureedeviepointeur, MAX(dureedeviepointeur) AS dureedevie, MAX(phase) AS phase
        FROM declaration
        WHERE nom_machine = $1
        AND reference = $2
@@ -2106,6 +2106,9 @@ router.put('/updateDeclaration', async (req, res) => {
     );
     const oldToolDataMapp = new Map(
       toolData.rows.map(({ outil, dureedevie }) => [outil, dureedevie])
+    );
+      const oldToolDataMapphase = new Map(
+      toolData.rows.map(({ outil, phase }) => [outil, phase])
     );
     // 2️⃣ Remove tools from the old reference that are NOT in the new reference
     await pool.query(
@@ -2122,16 +2125,17 @@ router.put('/updateDeclaration', async (req, res) => {
     for (const tool of tools) {
       const dureedeviepointeur = oldToolDataMap.get(tool) || null; // Keep old value if exists, otherwise null
       const dureedevie = oldToolDataMapp.get(tool) || null;
-
+      const phase = oldToolDataMapphase.get(tool) || null;
       // Insert new reference for the tool or update if it already exists
       await pool.query(
-        `INSERT INTO declaration (nom_machine, reference, outil, dureedeviepointeur, dureedevie)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO declaration (nom_machine, reference, outil, dureedeviepointeur, dureedevie, phase)
+         VALUES ($1, $2, $3, $4, $5, $6)
          ON CONFLICT (nom_machine, reference, outil) 
          DO UPDATE SET 
            dureedeviepointeur = EXCLUDED.dureedeviepointeur,
-           dureedevie = EXCLUDED.dureedevie`,
-        [nom_machine, new_reference, tool, dureedeviepointeur, dureedevie ]
+           dureedevie = EXCLUDED.dureedevie,
+           phase = EXCLUDED.phase`,
+        [nom_machine, new_reference, tool, dureedeviepointeur, dureedevie, phase ]
       );
 
       console.log(`✅ Inserted tool: ${tool} with dureedeviepointeur: ${dureedeviepointeur}`);
