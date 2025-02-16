@@ -2157,8 +2157,8 @@ router.post('/ajouterdeclaration', authenticate, async (req, res) => {
   try {
     // Execute the query with correct placeholders
     const result = await pool.query(
-      'INSERT INTO declaration (nom_machine, reference, outil, dureedevie, phase) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [nom_machine, reference, outil, dureedevie, phase]
+      'INSERT INTO declaration (nom_machine, reference, outil,dureedeviepointeur dureedevie, phase) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [nom_machine, reference, outil,dureedevie, dureedevie, phase]
     );
 
     // Debugging: Log the query result
