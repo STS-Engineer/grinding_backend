@@ -2151,14 +2151,15 @@ router.put('/updateDeclaration', async (req, res) => {
   }
 });
 
+
 router.post('/ajouterdeclaration', authenticate, async (req, res) => {
   const { nom_machine, reference, outil, dureedevie, phase } = req.body;
 
   try {
-    // Execute the query with correct placeholders
+    // Execute the query, setting dureedeviepointeur to dureedevie
     const result = await pool.query(
-      'INSERT INTO declaration (nom_machine, reference, outil,dureedeviepointeur dureedevie, phase) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [nom_machine, reference, outil,dureedevie, dureedevie, phase]
+      'INSERT INTO declaration (nom_machine, reference, outil, dureedeviepointeur, dureedevie, phase) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [nom_machine, reference, outil, dureedevie, dureedevie, phase] // dureedeviepointeur is set to dureedevie
     );
 
     // Debugging: Log the query result
