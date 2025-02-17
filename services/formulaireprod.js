@@ -2129,11 +2129,7 @@ router.put('/updateDeclaration', async (req, res) => {
       // Insert new reference for the tool or update if it already exists
       await pool.query(
         `INSERT INTO declaration (nom_machine, reference, outil, dureedeviepointeur, dureedevie, phase)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         DO UPDATE SET 
-           dureedeviepointeur = EXCLUDED.dureedeviepointeur,
-           dureedevie = EXCLUDED.dureedevie,
-           phase = EXCLUDED.phase`,
+         VALUES ($1, $2, $3, $4, $5, $6)`,
         [nom_machine, new_reference, tool, dureedeviepointeur, dureedevie, phase ]
       );
 
