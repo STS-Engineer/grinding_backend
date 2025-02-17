@@ -1695,7 +1695,7 @@ router.post('/ajouteroutil', authenticate, async (req, res) => {
 
 router.get('/getoutil', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM outil');
+    const result = await pool.query('SELECT * FROM declaration');
 
     // Assuming result.rows contains the data
     return res.status(200).json({
