@@ -2130,7 +2130,6 @@ router.put('/updateDeclaration', async (req, res) => {
       await pool.query(
         `INSERT INTO declaration (nom_machine, reference, outil, dureedeviepointeur, dureedevie, phase)
          VALUES ($1, $2, $3, $4, $5, $6)
-         ON CONFLICT (nom_machine, reference, outil) 
          DO UPDATE SET 
            dureedeviepointeur = EXCLUDED.dureedeviepointeur,
            dureedevie = EXCLUDED.dureedevie,
