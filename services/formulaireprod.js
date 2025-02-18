@@ -159,7 +159,6 @@ const updatedOutilsdeclaration = await Promise.all(updatePromisess);
 
 
 
-
 // Middleware to authenticate and extract user from JWT
 const authenticate = (req, res, next) => {
   const authHeader = req.headers.authorization;
