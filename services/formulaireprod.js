@@ -2188,4 +2188,34 @@ router.post('/ajouterdeclaration', authenticate, async (req, res) => {
   }
 });
 
+router.delete('/plannification/delete-last', authenticate, async (req, res) => {
+  try {
+    // Log request params and query to debug unexpected values
+    console.log("Params:", req.params);
+    console.log("Query:", req.query);
+
+    // Ensure no unexpected parameters are interfering with the request
+    if (Object.keys(req.query).length > 0 || Object.keys(req.params).length > 0) {
+      return res.status(400).json({ message: "Invalid parameters in request" });
+    }
+
+    // Delete the last row in the plannification table
+    const result = await pool.query(`
+      DELETE FROM plannification 
+      WHERE id = (SELECT id FROM plannification ORDER BY date_creation DESC LIMIT 1) 
+      RETURNING *;
+    `);
+
+    if (result.rowCount > 0) {
+      res.status(200).json({ message: 'Last row deleted successfully', deletedRow: result.rows[0] });
+    } else {
+      res.status(404).json({ message: 'No rows found to delete' });
+    }
+  } catch (err) {
+    console.error('Error deleting last row:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+
 module.exports = router;
