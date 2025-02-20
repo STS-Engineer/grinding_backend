@@ -311,6 +311,7 @@ router.post('/machinee', authenticate, async (req, res) => {
 
     // Get the generated machine id
     const machineId = result.rows[0].id;
+
     console.log('Machine inserted, generated ID:', machineId);
 
     if (tools.length > 0) {
@@ -325,15 +326,11 @@ router.post('/machinee', authenticate, async (req, res) => {
 
         // Insert tool into outil table
         await pool.query(
-          'INSERT INTO outil (phase, nom_outil, dureedevie, machine_id, referenceproduit, dureedeviepointeur) VALUES ($1, $2, $3, $4, $5, $6)',
-          [tool.phase, tool.nom_outil, tool.dureedevie, machineId, tool.referenceproduit, dureedeviepointeur]
+          'INSERT INTO outil (phase, nom_outil, dureedevie, machine_id, referenceproduit, dureedeviepointeur, nom_machine) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          [tool.phase, tool.nom_outil, tool.dureedevie, machineId, tool.referenceproduit, dureedeviepointeur, nom]
         );
 
-        // Insert non-empty tools into declaration table
-        await pool.query(
-          'INSERT INTO declaration (nom_machine, reference, outil, dureedeviepointeur, dureedevie, phase) VALUES ($1, $2, $3, $4, $5, $6)',
-          [nom, referenceproduit, tool.nom_outil, tool.dureedevie, tool.dureedevie, tool.phase]
-        );
+   
       }
     } else {
       console.log('No tools provided for insertion.');
@@ -2085,64 +2082,98 @@ router.put('/updateDeclaration', async (req, res) => {
   const { nom_machine, old_reference, new_reference, tools } = req.body;
 
   try {
-    // Begin transaction
     await pool.query('BEGIN');
     console.log("🔍 Transaction started");
 
-    // 1️⃣ Fetch the latest dureedeviepointeur for each tool from the old reference
+    
+
+    // 1️⃣ Fetch latest dureedeviepointeur and dureedevie for each tool from the old reference
     const toolData = await pool.query(
-      `SELECT outil, MAX(dureedeviepointeur) AS dureedeviepointeur, MAX(dureedeviepointeur) AS dureedevie, MAX(phase) AS phase
+      `SELECT outil, MAX(dureedeviepointeur) AS dureedeviepointeur, MAX(dureedevie) AS dureedevie, MAX(phase) AS phase
        FROM declaration
-       WHERE nom_machine = $1
-       AND reference = $2
-       AND outil = ANY($3)
+       WHERE nom_machine = $1 AND reference = $2 AND outil = ANY($3)
        GROUP BY outil`,
       [nom_machine, old_reference, tools]
     );
 
     const oldToolDataMap = new Map(
-      toolData.rows.map(({ outil, dureedeviepointeur }) => [outil, dureedeviepointeur])
+      toolData.rows.map(({ outil, dureedeviepointeur, dureedevie, phase }) => 
+        [outil, { dureedeviepointeur, dureedevie, phase }]
+      )
     );
-    const oldToolDataMapp = new Map(
-      toolData.rows.map(({ outil, dureedevie }) => [outil, dureedevie])
+
+    // 2️⃣ Fetch new dureedevie from `outil` table for the new reference
+    const newToolData = await pool.query(
+      `SELECT nom_outil, dureedevie FROM outil WHERE referenceproduit = $1 AND nom_outil = ANY($2)  AND nom_machine = $3`,
+      [new_reference, tools, nom_machine]
     );
-      const oldToolDataMapphase = new Map(
-      toolData.rows.map(({ outil, phase }) => [outil, phase])
-    );
-    // 2️⃣ Remove tools from the old reference that are NOT in the new reference
-    await pool.query(
-      `DELETE FROM declaration 
-       WHERE nom_machine = $1 
-       AND reference = $2 
-       AND outil NOT IN ($3)`,
-      [nom_machine, old_reference, tools]
-    );
+
+    const newToolDataMap = new Map(newToolData.rows.map(({ nom_outil, dureedevie }) => [nom_outil, dureedevie]));
+
+// Remove tools that exist in the old reference but NOT in the new reference
+await pool.query(
+  `DELETE FROM declaration 
+   WHERE nom_machine = $1 
+   AND reference = $2 
+   AND outil NOT IN (SELECT unnest($3::text[]))`,
+  [nom_machine, old_reference, tools]
+);
+console.log("🔴 Removed tools from the old reference that are not in the new reference.");
+
+// Remove tools that exist in the old reference but do NOT exist in the new reference
+await pool.query(
+  `DELETE FROM declaration 
+   WHERE nom_machine = $1 
+   AND reference = $2 
+   AND outil NOT IN (SELECT outil FROM declaration WHERE reference = $3)`,
+  [nom_machine, old_reference, new_reference]
+);
+console.log("🔴 Removed tools from the old reference that do not exist in the new reference.");
+
+    
 
     console.log("🔴 Removed tools from the old reference that are not in the new reference.");
 
-    // 3️⃣ Insert new reference with tools, keeping dureedeviepointeur if already exists in the old reference
+    // 4️⃣ Insert new reference with updated dureedeviepointeur and dureedevie
     for (const tool of tools) {
-      const dureedeviepointeur = oldToolDataMap.get(tool) || null; // Keep old value if exists, otherwise null
-      const dureedevie = oldToolDataMapp.get(tool) || null;
-      const phase = oldToolDataMapphase.get(tool) || null;
-      // Insert new reference for the tool or update if it already exists
-      await pool.query(
-        `INSERT INTO declaration (nom_machine, reference, outil, dureedeviepointeur, dureedevie, phase)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [nom_machine, new_reference, tool, dureedeviepointeur, dureedevie, phase ]
+      const { dureedeviepointeur: oldDVP, dureedevie: oldDDV, phase } = oldToolDataMap.get(tool) || {};
+      const newDDV = newToolDataMap.get(tool) || null;
+
+      // Maintain the highest dureedeviepointeur from both old and new
+      const finalDureedeviepointeur = oldDVP ?? newDDV;
+      const finalDureedevie = oldDDV ?? newDDV;
+
+      // Check if tool exists in the table already
+      const existingToolCheck = await pool.query(
+        `SELECT dureedeviepointeur, dureedevie FROM declaration WHERE nom_machine = $1 AND reference = $2 AND outil = $3`,
+        [nom_machine, new_reference, tool]
       );
 
-      console.log(`✅ Inserted tool: ${tool} with dureedeviepointeur: ${dureedeviepointeur}`);
+      if (existingToolCheck.rows.length > 0) {
+        // If the tool exists, update both dureedeviepointeur and dureedevie
+        await pool.query(
+          `UPDATE declaration 
+           SET dureedeviepointeur = $4, dureedevie = $5, phase = $6
+           WHERE nom_machine = $1 AND reference = $2 AND outil = $3`,
+          [nom_machine, new_reference, tool, finalDureedeviepointeur, finalDureedevie, phase]
+        );
+        console.log(`✅ Updated tool: ${tool} with dureedeviepointeur: ${finalDureedeviepointeur}, dureedevie: ${finalDureedevie}`);
+      } else {
+        // Insert a new record using dureedevie from the `outil` table
+        await pool.query(
+          `INSERT INTO declaration (nom_machine, reference, outil, dureedeviepointeur, dureedevie, phase)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [nom_machine, new_reference, tool, finalDureedeviepointeur, finalDureedevie, phase]
+        );
+        console.log(`✅ Inserted new tool: ${tool} with dureedeviepointeur: ${finalDureedeviepointeur}, dureedevie: ${finalDureedevie}`);
+      }
     }
 
-    // Commit transaction
     await pool.query('COMMIT');
     console.log("✅ Transaction committed successfully.");
-
     return res.json({ message: 'Declaration updated successfully' });
 
   } catch (error) {
-    // Rollback in case of error
     await pool.query('ROLLBACK');
     console.error('❌ Error updating declaration:', error.message);
     return res.status(500).json({ message: 'Error updating declaration', error: error.message });
@@ -2213,6 +2244,26 @@ router.delete('/plannification/delete-last', authenticate, async (req, res) => {
   } catch (err) {
     console.error('Error deleting last row:', err);
     res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.get('/get/toolss/:reference/:nom_machine', async (req, res) => {
+  const { reference, nom_machine } = req.params;
+
+  try {
+    // Fetch tools and dureedevie for the given reference and machine
+    const result = await pool.query(
+      `SELECT DISTINCT nom_outil, dureedevie 
+       FROM outil 
+       WHERE referenceproduit = $1 AND nom_machine = $2`,
+      [reference, nom_machine]
+    );
+
+    // Return the fetched data as JSON
+    return res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching tools:', error.message);
+    return res.status(500).json({ message: 'Error fetching tools' });
   }
 });
 
