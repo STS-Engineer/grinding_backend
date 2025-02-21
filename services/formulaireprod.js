@@ -72,85 +72,68 @@ router.post('/prod', async (req, res) => {
   const {
     referenceproduit, date, shift, phase, totalplanifie,
     commentaires, totalrealise, machine_id, defaut, typedefautproduction,
-    totaldefautproduction, typedefautcf, totaldefautcf, typedefautcsl, totaldefautcsl, typedeproblemeproduction,
-    dureedeproblemeproduction, typedeproblemecf, dureedeproblemecf, typedeproblemecsl, dureedeproblemecsl, totalproduitcf, totalproduitcsl, nombreoperateur
+    totaldefautproduction, typedefautcf, totaldefautcf, typedefautcsl, totaldefautcsl,
+    typedeproblemeproduction, dureedeproblemeproduction, typedeproblemecf, dureedeproblemecf,
+    typedeproblemecsl, dureedeproblemecsl, totalproduitcf, totalproduitcsl, nombreoperateur
   } = req.body;
 
   try {
-   
- 
-
-    // Step 3: Insert production record, including totalplanifie
+    // Insert production record
     const productionResult = await pool.query(
       `INSERT INTO production (referenceproduit, date, shift, phase, totalplanifie, commentaires, totalrealise, machine_id, defaut, typedefautproduction, totaldefautproduction, typedefautcf, totaldefautcf, typedefautcsl, totaldefautcsl, typedeproblemeproduction, dureedeproblemeproduction, typedeproblemecf, dureedeproblemecf, typedeproblemecsl, dureedeproblemecsl, totalproduitcf, totalproduitcsl, nombreoperateur)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24) RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24) RETURNING *`,
       [referenceproduit, date, shift, phase, totalplanifie, commentaires, totalrealise, machine_id, defaut, typedefautproduction, totaldefautproduction, typedefautcf, totaldefautcf, typedefautcsl, totaldefautcsl, typedeproblemeproduction, dureedeproblemeproduction, typedeproblemecf, dureedeproblemecf, typedeproblemecsl, dureedeproblemecsl, totalproduitcf, totalproduitcsl, nombreoperateur]
     );
 
     const production = productionResult.rows[0];
-    // Step 2: Retrieve the current dureedeviepointeur based on outil_id
-    const outilResult = await pool.query(
-      `SELECT * FROM outil `
-    );
-    const Outildeclaration = await pool.query(
-      `SELECT * FROM declaration `
-    );
-  
 
-    if (outilResult.rows.length === 0) {
-      return res.status(404).json({ message: 'No matching outil found for the provided id' });
+    // Retrieve the nom_machine for the given machine_id
+    const machineResult = await pool.query(
+      `SELECT nom FROM machine WHERE id = $1`,
+      [machine_id]
+    );
+
+    if (machineResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Machine not found for the provided machine_id' });
     }
 
-  // Prepare an array of promises to update all outils
-const updatePromises = outilResult.rows.map(async (outil) => {
-  const currentDureeDeviePointeur = outil.dureedeviepointeur;
-  const updatedDureeDeviePointeur = Math.max(0, currentDureeDeviePointeur - totalrealise);  // Assuming `totalrealise` is the same for all rows
+    const nomMachine = machineResult.rows[0].nom;
 
-  console.log('Current DureeDeviePointeur:', currentDureeDeviePointeur);
-  console.log('Updated DureeDeviePointeur:', updatedDureeDeviePointeur);
+    // Retrieve the declaration records matching the nom_machine
+    const declarationResult = await pool.query(
+      `SELECT * FROM declaration WHERE nom_machine = $1`,
+      [nomMachine]
+    );
 
-  // Update each outil
-  return pool.query(
-    `UPDATE outil 
-     SET dureedeviepointeur = $1 
-     WHERE id = $2 
-     RETURNING *`,
-    [updatedDureeDeviePointeur, outil.id]
-  );
-});
+    if (declarationResult.rows.length === 0) {
+      return res.status(404).json({ message: `No matching declaration found for machine: ${nomMachine}` });
+    }
 
+    // Update only the matching declaration records
+    const updatePromises = declarationResult.rows.map(async (declaration) => {
+      const currentDureeDeviePointeur = declaration.dureedeviepointeur;
+      const updatedDureeDeviePointeur = Math.max(0, currentDureeDeviePointeur - totalrealise);
 
-const updatePromisess = Outildeclaration.rows.map(async (outil) => {
-  const currentDureeDeviePointeur = outil.dureedeviepointeur;
-  const updatedDureeDeviePointeurdeclaration = Math.max(0, currentDureeDeviePointeur - totalrealise);  // Assuming `totalrealise` is the same for all rows
+      console.log(`Updating declaration for machine ${nomMachine}:`);
+      console.log('Current DureeDeviePointeur:', currentDureeDeviePointeur);
+      console.log('Updated DureeDeviePointeur:', updatedDureeDeviePointeur);
 
-  console.log('Current DureeDeviePointeur:', currentDureeDeviePointeur);
-  console.log('Updated DureeDeviePointeur:', updatedDureeDeviePointeurdeclaration);
+      return pool.query(
+        `UPDATE declaration 
+         SET dureedeviepointeur = $1 
+         WHERE id = $2 
+         RETURNING *`,
+        [updatedDureeDeviePointeur, declaration.id]
+      );
+    });
 
-  // Update each outil
-  return pool.query(
-    `UPDATE declaration 
-     SET dureedeviepointeur = $1 
-     WHERE id = $2 
-     RETURNING *`,
-    [updatedDureeDeviePointeurdeclaration, outil.id]
-  );
-});
-
-// Wait for all the update operations to finish
-const updatedOutils = await Promise.all(updatePromises);
-const updatedOutilsdeclaration = await Promise.all(updatePromisess);
-
-
-
+    const updatedDeclarations = await Promise.all(updatePromises);
 
     res.status(201).json({
       message: 'Production created successfully with the totalplanifie value',
       production,
-      updatedOutil: updatedOutils,
-      updatedOutildeclaration: updatedOutilsdeclaration
+      updatedDeclarations
     });
-
   } catch (err) {
     console.error('Error adding production:', err);
     res.status(500).json({ message: 'Internal server error', error: err.message });
